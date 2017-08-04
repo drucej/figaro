@@ -29,7 +29,7 @@ abstract class SolvingStrategy(problem: Problem) {
    * Get all of the non-constraint factors needed for solving.
    * @return Non-constraint factors for solving.
    */
-  def nonConstraintFactors(): List[Factor[Double]] = {
+  def nonConstraintFactors(): List[Factor[(Double,Double)]] = {
     problem.components.flatMap(_.nonConstraintFactors())
   }
 
@@ -38,12 +38,13 @@ abstract class SolvingStrategy(problem: Problem) {
    * @param bounds Bounds for the returned constraint factors.
    * @return Constraint factors for solving.
    */
-  def constraintFactors(bounds: Bounds): List[Factor[Double]] = {
+  def constraintFactors(bounds: Bounds): List[Factor[(Double,Double)]] = {
     problem match {
       // Nested problems can't have evidence
       case np: NestedProblem[_] =>
         List()
       case _ =>
+        problem.components.flatMap(_.constraintFactors())
         problem.components.flatMap(_.constraintFactors(bounds))
     }
   }
@@ -56,8 +57,8 @@ abstract class SolvingStrategy(problem: Problem) {
    * @return A list of factors over the variables to preserve representing their joint distribution, and a map of
    * recording factors for MPE.
    */
-  def eliminate(toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[Double]]):
-    (List[Factor[Double]], Map[Variable[_], Factor[_]])
+  def eliminate(toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[(Double,Double)]]):
+    (List[Factor[(Double,Double)]], Map[Variable[_], Factor[_]])
 
   /**
    * Solve the problem defined by all the components' current factors. This involves solving and incorporating

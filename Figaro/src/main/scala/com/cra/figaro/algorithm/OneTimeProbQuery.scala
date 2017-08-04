@@ -33,3 +33,17 @@ trait OneTimeProbQuery extends ProbQueryAlgorithm with OneTime {
   override protected def doProjection[T](target: Element[T]): List[(T, Double)] = computeProjection(target)
     
 }
+
+trait OneTimeDualProbQuery extends DualProbQueryAlgorithm with OneTime {
+  protected def doDistribution[T](target: Element[T]): Stream[((Double,Double), T)] = computeDistribution(target)
+
+  protected def doExpectation[T](target: Element[T], function: T => (Double,Double)): (Double,Double) =
+    computeExpectation(target, function)
+
+  protected def doProbability[T](target: Element[T], predicate: T => Boolean): (Double,Double) = {
+    computeProbability(target, predicate)
+  }
+
+  override protected def doProjection[T](target: Element[T]): List[(T, (Double,Double))] = computeProjection(target)
+
+}

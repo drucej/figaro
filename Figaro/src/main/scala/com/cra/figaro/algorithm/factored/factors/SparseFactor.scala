@@ -32,7 +32,7 @@ import com.cra.figaro.language.Parameter
  * This implementation stores only non-default (non-zero) elements and supplies special sum and product methods to
  * account for the missing values.
  */
-class SparseFactor[T](val parents: List[Variable[_]], val output: List[Variable[_]], val semiring: Semiring[T] = SumProductSemiring().asInstanceOf[Semiring[T]])
+class SparseFactor[T](val parents: List[Variable[_]], val output: List[Variable[_]], val semiring: Semiring[T] = SumProductDualSemiring().asInstanceOf[Semiring[T]])
     extends BasicFactor[T] {
 
   override def createFactor[T](_parents: List[Variable[_]], _output: List[Variable[_]], _semiring: Semiring[T] = semiring) = {

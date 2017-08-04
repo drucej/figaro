@@ -31,6 +31,8 @@ import scala.collection.mutable.HashMap
  */
 class Variable[T](val valueSet: ValueSet[T]) {
   type Value = T
+  val isDual = false
+
 
   val range: List[Extended[T]] = valueSet.xvalues.toList
 
@@ -64,6 +66,8 @@ class Variable[T](val valueSet: ValueSet[T]) {
 class ElementVariable[T](val element: Element[T]) extends Variable(LazyValues(element.universe).storedValues(element)) {
 
   override val id = Variable.nextId(element)
+  override val isDual = element.isDual
+
 
   override def toString = element.toString
 }
@@ -75,6 +79,7 @@ class ElementVariable[T](val element: Element[T]) extends Variable(LazyValues(el
  */
 class ParameterizedVariable[T](override val element: Parameterized[T]) extends ElementVariable(element) {
   override def toString = "Parameterized variable:" + element.toString
+  override val isDual = element.isDual
 }
 
 /**

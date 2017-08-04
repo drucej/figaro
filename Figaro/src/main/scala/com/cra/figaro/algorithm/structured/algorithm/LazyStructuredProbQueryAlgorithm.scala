@@ -16,7 +16,7 @@ import com.cra.figaro.algorithm._
 import com.cra.figaro.language._
 import akka.pattern.ask
 import com.cra.figaro.algorithm.factored.factors.factory.Factory
-import com.cra.figaro.algorithm.factored.factors.{BoundsSumProductSemiring, Factor, SumProductSemiring}
+import com.cra.figaro.algorithm.factored.factors.{BoundsSumProductSemiring, Factor, SumProductSemiring, SumProductDualSemiring}
 import com.cra.figaro.algorithm.lazyfactored.Regular
 import com.cra.figaro.algorithm.structured.{Bounds, Lower, Upper}
 import com.cra.figaro.algorithm.structured.solver._
@@ -35,8 +35,8 @@ abstract class LazyStructuredProbQueryAlgorithm(val universe: Universe, val quer
     // lowerFactors == upperFactors.
     val lowerFactors = solutions.getOrElse(Lower, solutions(Upper))._1
     val upperFactors = solutions.getOrElse(Upper, solutions(Lower))._1
-    val jointLower = lowerFactors.foldLeft(Factory.unit(SumProductSemiring()))(_.product(_))
-    val jointUpper = upperFactors.foldLeft(Factory.unit(SumProductSemiring()))(_.product(_))
+    val jointLower = lowerFactors.foldLeft(Factory.unit(SumProductDualSemiring()))(_.product(_))
+    val jointUpper = upperFactors.foldLeft(Factory.unit(SumProductDualSemiring()))(_.product(_))
     // The factors must be over the same variables in the same order
     val jointUpperIndexed =
       if(jointLower.variables == jointUpper.variables) {
@@ -56,7 +56,7 @@ abstract class LazyStructuredProbQueryAlgorithm(val universe: Universe, val quer
         assert(lowerToUpperPerm.map(upperVars) == lowerVars)
         val numVars = lowerVars.length
         // We'll take jointUpper and create an equivalent factor with the variables in the order of jointLower
-        val newJointUpper = jointUpper.createFactor(jointLower.parents, jointLower.output, SumProductSemiring())
+        val newJointUpper = jointUpper.createFactor(jointLower.parents, jointLower.output, SumProductDualSemiring())
         for(previousIndices <- jointUpper.getIndices) {
           // Just as lowerToUpperPerm maps upper variables to lower variables (see above), it also maps previous indices
           // to new indices (i.e. indices in jointUpper to the corresponding indices in jointLower)
@@ -95,18 +95,18 @@ abstract class LazyStructuredProbQueryAlgorithm(val universe: Universe, val quer
    * @param upperFactor Unnormalized upper bounds.
    * @return A factor containing bounds on each of the regular values.
    */
-  def boundsFactor(lowerFactor: Factor[Double], upperFactor: Factor[Double]): Factor[(Double, Double)] = {
+  def boundsFactor(lowerFactor: Factor[(Double,Double)], upperFactor: Factor[(Double,Double)]): Factor[(Double, Double)] = {
     assert(lowerFactor.variables == upperFactor.variables)
     val result = Factory.defaultFactor(lowerFactor.parents, lowerFactor.output, BoundsSumProductSemiring())
 
     // First, we compute the sum of unnormalized lower and upper bounds.
-    var lowerTotal = 0.0
-    var upperTotal = 0.0
+    var lowerTotal = SumProductDualSemiring().zero
+    var upperTotal = SumProductDualSemiring().zero
     for { indices <- result.getIndices } {
       val lower = lowerFactor.get(indices)
       val upper = upperFactor.get(indices)
-      lowerTotal += lower
-      upperTotal += upper
+      lowerTotal = SumProductDualSemiring().sum(lowerTotal,  lower)
+      upperTotal = SumProductDualSemiring().sum(upperTotal, upper)
     }
 
     // Index into each variable of * (or -1 if all values are regular)
@@ -130,17 +130,19 @@ abstract class LazyStructuredProbQueryAlgorithm(val universe: Universe, val quer
      */
     for { indices <- result.getIndices } {
       // Compute the inconsistent and consistent totals
-      var inconsistentLowerTotal = 0.0
-      var consistentUpperTotal = 0.0
+      var inconsistentLowerTotal = SumProductDualSemiring().zero
+      var consistentUpperTotal = SumProductDualSemiring().zero
       for { otherIndices <- result.getIndices } {
-        if (consistent(indices, otherIndices)) consistentUpperTotal += upperFactor.get(otherIndices)
-        else inconsistentLowerTotal += lowerFactor.get(otherIndices)
+        if (consistent(indices, otherIndices)) consistentUpperTotal = SumProductDualSemiring().sum(consistentUpperTotal,  upperFactor.get(otherIndices))
+        else inconsistentLowerTotal = SumProductDualSemiring().sum(inconsistentLowerTotal , lowerFactor.get(otherIndices))
       }
       // Get the definitely allocated probability mass: upperTotal is an upper bound on the normalizing factor.
-      val lowerBound = lowerFactor.get(indices) / upperTotal
+      val lowerBound = SumProductDualSemiring().divide(lowerFactor.get(indices),  upperTotal)
       // Use the lesser of the two upper bounds described above
-      val upperBound = (1.0 - inconsistentLowerTotal / upperTotal).min(consistentUpperTotal / lowerTotal)
-      result.set(indices, (lowerBound, upperBound))
+
+      val upperBound = SumProductDualSemiring().sum(SumProductDualSemiring().one,  SumProductDualSemiring().product((-1.0, 0.0), SumProductDualSemiring().divide(inconsistentLowerTotal, upperTotal)))
+      //val upperBound = (1.0 - inconsistentLowerTotal / upperTotal).min(consistentUpperTotal / lowerTotal)
+      result.set(indices, (lowerBound._1, upperBound._1))
     }
 
     result

@@ -38,7 +38,7 @@ class Problem(val collection: ComponentCollection, val targets: List[Element[_]]
   /**
    *  Factors over globals produced by solving the problem.
    */
-  var solution: List[Factor[Double]] = List()
+  var solution: List[Factor[(Double,Double)]] = List()
   
   /**
    *  A map for each variable that indicates the value of the variable that is maximal for each possible value of the interface

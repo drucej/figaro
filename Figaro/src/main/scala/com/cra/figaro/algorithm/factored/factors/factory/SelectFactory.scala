@@ -29,7 +29,7 @@ object SelectFactory {
   /**
    * Factor constructor for an AtomicDistFlip
    */
-  def makeFactors[T](cc: ComponentCollection, dist: AtomicDist[T]): List[Factor[Double]] = {
+  def makeFactors[T](cc: ComponentCollection, dist: AtomicDist[T]): List[Factor[(Double,Double)]] = {
     val (intermed, clauseFactors) = intermedAndClauseFactors(cc, dist)
     val intermedFactor = makeSimpleDistribution(intermed, dist.probs)
     intermedFactor :: clauseFactors
@@ -38,7 +38,7 @@ object SelectFactory {
   /**
    * Factor constructor for a CompoundDist
    */
-  def makeFactors[T](cc: ComponentCollection, dist: CompoundDist[T]): List[Factor[Double]] = {
+  def makeFactors[T](cc: ComponentCollection, dist: CompoundDist[T]): List[Factor[(Double,Double)]] = {
     val (intermed, clauseFactors) = intermedAndClauseFactors(cc, dist)
     val probVars = dist.probs map (Factory.getVariable(cc, _))
     val intermedFactor = makeComplexDistribution(cc, intermed, probVars)
@@ -48,21 +48,22 @@ object SelectFactory {
   /**
    * Factor constructor for an AtomicSelect
    */
-  def makeFactors[T](cc: ComponentCollection, select: AtomicSelect[T]): List[Factor[Double]] = {
+  def makeFactors[T](cc: ComponentCollection, select: AtomicSelect[T]): List[Factor[(Double,Double)]] = {
     val selectVar = Factory.getVariable(cc, select)
     if (selectVar.range.exists(!_.isRegular)) {
       assert(selectVar.range.size == 1) // Select's range must either be a list of regular values or {*}
       StarFactory.makeStarFactor(cc, select)
     } else {
       val probs = getProbs(cc, select)
-      List(makeSimpleDistribution(selectVar, probs))
+      val fs = List(makeSimpleDistribution(selectVar, probs))
+      fs
     }
   }
 
   /**
    * Factor constructor for a CompoundSelect
    */
-  def makeFactors[T](cc: ComponentCollection, select: CompoundSelect[T]): List[Factor[Double]] = {
+  def makeFactors[T](cc: ComponentCollection, select: CompoundSelect[T]): List[Factor[(Double,Double)]] = {
       val selectVar = Factory.getVariable(cc, select)
       val probs = getProbs(cc, select)
       val probVars = probs map (Factory.getVariable(cc, _))
@@ -72,7 +73,7 @@ object SelectFactory {
   /**
    * Factor constructor for a ParameterizedSelect
    */
-  def makeFactors[T](cc: ComponentCollection, select: ParameterizedSelect[T], parameterized: Boolean): List[Factor[Double]] = {
+  def makeFactors[T](cc: ComponentCollection, select: ParameterizedSelect[T], parameterized: Boolean): List[Factor[(Double,Double)]] = {
     if (parameterized) {
       val selectVar = Factory.getVariable(cc, select)
       val probs = parameterizedGetProbs(cc, select)
@@ -81,21 +82,21 @@ object SelectFactory {
       val selectVar: Variable[T] = Factory.getVariable(cc, select)
       if (selectVar.range.exists(!_.isRegular)) {
         // If the select has * in its range, the parameter must not have been added (because the parameter is an atomic beta)
-        val factor = new DenseFactor[Double](List(), List(selectVar))
+        val factor = new DenseFactor[(Double,Double)](List(), List(selectVar))
         for { (selectXval, i) <- selectVar.range.zipWithIndex } {
-          val entry = if (selectXval.isRegular) 0.0 else 1.0
+          val entry = if (selectXval.isRegular) (0.0, if (selectXval.isDual) 1.0 else 0.0) else (1.0, if (selectXval.isDual) 1.0 else 0.0)
           factor.set(List(i), entry)
         }
         List(factor)
       } else {
         val paramVar: Variable[Array[Double]] = Factory.getVariable(cc, select.parameter)
-        val factor = new DenseFactor[Double](List(paramVar), List(selectVar))
+        val factor = new DenseFactor[(Double,Double)](List(paramVar), List(selectVar))
         for {
           (paramVal, paramIndex) <- paramVar.range.zipWithIndex
           (selectVal, selectIndex) <- selectVar.range.zipWithIndex
         } {
           val entry = paramVal.value(selectIndex)
-          factor.set(List(paramIndex, selectIndex), entry)
+          factor.set(List(paramIndex, selectIndex), (entry, if (paramVar.isDual) 1.0 else 0.0 ))
         }
         List(factor)
       }
@@ -144,7 +145,7 @@ object SelectFactory {
     }
   }
 
-  private def intermedAndClauseFactors[U, T](cc: ComponentCollection, dist: Dist[U, T]): (Variable[Int], List[Factor[Double]]) = {
+  private def intermedAndClauseFactors[U, T](cc: ComponentCollection, dist: Dist[U, T]): (Variable[Int], List[Factor[(Double,Double)]]) = {
     val intermed = Factory.makeVariable(cc, ValueSet.withoutStar((0 until dist.clauses.size).toSet))
     val distVar = Factory.getVariable(cc, dist)
     val (pairVar, pairFactor) = Factory.makeTupleVarAndFactor(cc, None, intermed, distVar)
@@ -157,10 +158,10 @@ object SelectFactory {
    * Constructs a DenseFactor from a probability distribution. It assumes that the probabilities
    * are assigned to the Variable in the same order as it's values.
    */
-  def makeSimpleDistribution[T](target: Variable[T], probs: List[Double]): Factor[Double] = {
-    val factor = new DenseFactor[Double](List(), List(target))
+  def makeSimpleDistribution[T](target: Variable[T], probs: List[Double]): Factor[(Double,Double)] = {
+    val factor = new DenseFactor[(Double,Double)](List(), List(target))
     for { (prob, index) <- probs.zipWithIndex } {
-      factor.set(List(index), prob)
+      factor.set(List(index), (prob, if (target.isDual) 1.0 else 0.0))
     }
     factor
   }
@@ -171,9 +172,9 @@ object SelectFactory {
    *  so we cannot assign a specific probability to any of the regular values. Instead, we assign probability 1 to *.
    *  The code in the method below is designed to take into account this case correctly.
    */
-  private def makeComplexDistribution[T](cc: ComponentCollection, target: Variable[T], probVars: List[Variable[Double]]): Factor[Double] = {
+  private def makeComplexDistribution[T](cc: ComponentCollection, target: Variable[T], probVars: List[Variable[Double]]): Factor[(Double,Double)] = {
     val nVars = probVars.size
-    val factor = new DenseFactor[Double](probVars, List(target))
+    val factor = new DenseFactor[(Double,Double)](probVars, List(target))
     val probVals: List[List[Extended[Double]]] = probVars map (_.range)
     if (target.range.forall(_.isRegular)) {
       /*
@@ -192,7 +193,8 @@ object SelectFactory {
             xprob.value
           }
         val normalized = normalize(unnormalized).toArray
-        factor.set(indices, normalized(indices.last))
+        println("This is probably broken - dscof")
+        factor.set(indices, (normalized(indices.last), if (probVars.filter(_.isDual).isEmpty) 0.0 else 1.0))
       }
     } else {
       /*
@@ -235,7 +237,7 @@ object SelectFactory {
 
         val normalized: Array[Double] = normalize(unnormalized).toArray
         // The first variable specifies the position of the remaining variables, so indices(0) is the correct probability
-        factor.set(indices, normalized(indices.last))
+        factor.set(indices, (normalized(indices.last), if (probVars.filter(_.isDual).isEmpty) 0.0 else 1.0))
       }
     }
 

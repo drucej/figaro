@@ -29,20 +29,20 @@ object ComplexFactory {
   /**
    * Factor constructor for a SingleValuedReferenceElement
    */
-  def makeFactors[T](cc: ComponentCollection, element: SingleValuedReferenceElement[T]): List[Factor[Double]] = {
+  def makeFactors[T](cc: ComponentCollection, element: SingleValuedReferenceElement[T]): List[Factor[(Double,Double)]] = {
     // Make the list of factors starting from the given element collection with the given reference.
     // startVar represents the variable whose value is the value of the reference.
-    def make(ec: ElementCollection, startVar: Variable[T], reference: Reference[T]): List[Factor[Double]] = {
+    def make(ec: ElementCollection, startVar: Variable[T], reference: Reference[T]): List[Factor[(Double,Double)]] = {
       val (firstElem, restRefOpt) = ec.getFirst(reference)
       restRefOpt match {
         case None =>
           val firstVar = Factory.getVariable(cc, firstElem)
-          val factor = new SparseFactor[Double](List(firstVar), List(startVar))
+          val factor = new SparseFactor[(Double,Double)](List(firstVar), List(startVar))
           for {
             (firstVal, firstIndex) <- firstVar.range.zipWithIndex
           } {
             val startIndex = startVar.range.indexOf(firstVal)
-            factor.set(List(firstIndex, startIndex), 1.0)
+            factor.set(List(firstIndex, startIndex), (1.0, 0.0))
           }
           List(factor)
 
@@ -80,15 +80,15 @@ object ComplexFactory {
   /**
    * Factor constructor for a MultiValuedReferenceElement
    */
-  def makeFactors[T](cc: ComponentCollection, element: MultiValuedReferenceElement[T]): List[Factor[Double]] = {
-    def makeEmbeddedInject(inputVariables: List[Variable[MultiSet[T]]]): (Variable[List[MultiSet[T]]], Factor[Double]) = {
+  def makeFactors[T](cc: ComponentCollection, element: MultiValuedReferenceElement[T]): List[Factor[(Double,Double)]] = {
+    def makeEmbeddedInject(inputVariables: List[Variable[MultiSet[T]]]): (Variable[List[MultiSet[T]]], Factor[(Double,Double)]) = {
       def rule(values: List[Extended[_]]) = {
         val inputXvalues :+ resultXvalue = values
         if (inputXvalues.exists(!_.isRegular)) {
-          if (!resultXvalue.isRegular) 1.0; else 0.0
+          if (!resultXvalue.isRegular) (1.0, if (resultXvalue.isDual) 1.0 else 0.0); else (0.0, if (resultXvalue.isDual) 1.0 else 0.0)
         } else if (resultXvalue.isRegular) {
-          if (resultXvalue.value.asInstanceOf[List[T]] == inputXvalues.map(_.value.asInstanceOf[T])) 1.0; else 0.0
-        } else 0.0
+          if (resultXvalue.value.asInstanceOf[List[T]] == inputXvalues.map(_.value.asInstanceOf[T])) (1.0, if (resultXvalue.isDual) 1.0 else 0.0); else (0.0, if (resultXvalue.isDual) 1.0 else 0.0)
+        } else (0.0, if (resultXvalue.isDual) 1.0 else 0.0 )
       }
       val argVSs = inputVariables.map(_.valueSet)
       val incomplete = argVSs.exists(_.hasStar)
@@ -97,27 +97,27 @@ object ComplexFactory {
       val injectRange = if (incomplete) withStar(resultValues); else withoutStar(resultValues)
 
       val resultVariable = Factory.makeVariable(cc, injectRange)
-      val factor = new DenseFactor[Double](inputVariables, List(resultVariable))
+      val factor = new DenseFactor[(Double,Double)](inputVariables, List(resultVariable))
       factor.fillByRule(rule _)
       (resultVariable, factor)
     }
 
-    def makeEmbeddedApply(injectVar: Variable[List[MultiSet[T]]]): (Variable[MultiSet[T]], Factor[Double]) = {
+    def makeEmbeddedApply(injectVar: Variable[List[MultiSet[T]]]): (Variable[MultiSet[T]], Factor[(Double,Double)]) = {
       def rule(sets: List[MultiSet[T]]): MultiSet[T] = {
         val starter: MultiSet[T] = HashMultiSet[T]()
         sets.foldLeft(starter)(_ union _)
       }
       val applyVS: ValueSet[MultiSet[T]] = injectVar.valueSet.map(rule(_))
       val applyVar = Factory.makeVariable(cc, applyVS)
-      val factor = new SparseFactor[Double](List(injectVar), List(applyVar))
+      val factor = new SparseFactor[(Double,Double)](List(injectVar), List(applyVar))
       for { (injectVal, injectIndex) <- injectVar.range.zipWithIndex } {
         if (injectVal.isRegular) {
           val resultVal = rule(injectVal.value)
           val resultIndex = applyVar.range.indexWhere(_.value == resultVal)
-          factor.set(List(injectIndex, resultIndex), 1.0)
+          factor.set(List(injectIndex, resultIndex), (1.0, if (applyVar.isDual) 1.0 else 0.0))
         } else if (!injectVal.isRegular && applyVar.range.exists(!_.isRegular)) {
           val resultIndex = applyVar.range.indexWhere(!_.isRegular)
-          factor.set(List(injectIndex, resultIndex), 1.0)
+          factor.set(List(injectIndex, resultIndex), (1.0, if (applyVar.isDual) 1.0 else 0.0))
         }
       }
       (applyVar, factor)
@@ -125,21 +125,21 @@ object ComplexFactory {
 
     // Make the list of factors starting from the given element collection with the given reference.
     // startVar represents the variable whose value is the value of the reference.
-    def make(ec: ElementCollection, startVar: Variable[MultiSet[T]], reference: Reference[T]): List[Factor[Double]] = {
+    def make(ec: ElementCollection, startVar: Variable[MultiSet[T]], reference: Reference[T]): List[Factor[(Double,Double)]] = {
       val (firstElem, restRefOpt) = ec.getFirst(reference)
       val firstVar = Factory.getVariable(cc, firstElem).asInstanceOf[Variable[firstElem.Value]]
       restRefOpt match {
         case None => {
           // When the reference is simple, it only refers to a single element, so we just get the factor mapping
           // values of that element to values of startVar
-          val factor = new SparseFactor[Double](List(firstVar), List(startVar))
+          val factor = new SparseFactor[(Double,Double)](List(firstVar), List(startVar))
           for {
             (firstVal, firstIndex) <- firstVar.range.zipWithIndex
           } {
             val startIndex =
               if (firstVal.isRegular) startVar.range.indexWhere(_.value == HashMultiSet(firstVal.value))
               else startVar.range.indexWhere(!_.isRegular)
-            factor.set(List(firstIndex, startIndex), 1.0)
+            factor.set(List(firstIndex, startIndex), (1.0, 0.0))
           }
           List(factor)
         }
@@ -149,7 +149,7 @@ object ComplexFactory {
             // Each first value is either a single element collection, in which case we recurse simply, just like for a single-valued reference.
             // Otherwise, the first value is a traversable of element collections, in which case see below.
             val (pairVar, pairFactor) = Factory.makeTupleVarAndFactor(cc, None, firstVar, startVar)
-            val selectionFactors: List[List[Factor[Double]]] = {
+            val selectionFactors: List[List[Factor[(Double,Double)]]] = {
               val selectedFactors =
                 for {
                   (firstXvalue, firstIndex) <- firstVar.range.zipWithIndex
@@ -205,18 +205,18 @@ object ComplexFactory {
   /**
    * Factor constructor for an Aggregate Element
    */
-  def makeFactors[T, U](cc: ComponentCollection, element: Aggregate[T, U]): List[Factor[Double]] = {
+  def makeFactors[T, U](cc: ComponentCollection, element: Aggregate[T, U]): List[Factor[(Double,Double)]] = {
     val elementVar = Factory.getVariable(cc, element)
     val mvreVar = Factory.getVariable(cc, element.mvre)
-    val factor = new SparseFactor[Double](List(mvreVar), List(elementVar))
+    val factor = new SparseFactor[(Double,Double)](List(mvreVar), List(elementVar))
     for {
       (mvreXvalue, mvreIndex) <- mvreVar.range.zipWithIndex
     } {
       if (mvreXvalue.isRegular) {
         val aggValue = element.aggregate(mvreXvalue.value)
         val elementIndex = elementVar.range.indexOf(Regular(aggValue))
-        factor.set(List(mvreIndex, elementIndex), 1.0)
-      } else factor.set(List(mvreIndex, elementVar.range.indexWhere(!_.isRegular)), 1.0)
+        factor.set(List(mvreIndex, elementIndex), (1.0, 0.0 ))
+      } else factor.set(List(mvreIndex, elementVar.range.indexWhere(!_.isRegular)), (1.0,  0.0))
     }
     // The MultiValuedReferenceElement for this aggregate is generated when values is called.
     // Therefore, it will be included in the expansion and have factors made for it automatically, so we do not create factors for it here.
@@ -226,11 +226,11 @@ object ComplexFactory {
   /**
    * Factor constructor for a MakeArray Element
    */
-  def makeFactors[T](cc: ComponentCollection, element: com.cra.figaro.library.collection.MakeArray[T]): List[Factor[Double]] = {
+  def makeFactors[T](cc: ComponentCollection, element: com.cra.figaro.library.collection.MakeArray[T]): List[Factor[(Double,Double)]] = {
     val arg1Var = Factory.getVariable(cc, element.numItems)
     val resultVar = Factory.getVariable(cc, element)
     val makeArrayComponent = cc(element)
-    val factor = new SparseFactor[Double](List(arg1Var), List(resultVar))
+    val factor = new SparseFactor[(Double,Double)](List(arg1Var), List(resultVar))
     val arg1Indices = arg1Var.range.zipWithIndex
     val resultIndices = resultVar.range.zipWithIndex
     for {
@@ -240,7 +240,7 @@ object ComplexFactory {
       if ((arg1Val.isRegular && arg1Val.value <= makeArrayComponent.maxExpanded &&
            resultVal.isRegular && resultVal.value == element.arrays(arg1Val.value) ||
           (!arg1Val.isRegular || arg1Val.value > makeArrayComponent.maxExpanded) && !resultVal.isRegular)) {
-        factor.set(List(arg1Index, resultIndex), 1.0)
+        factor.set(List(arg1Index, resultIndex), (1.0, 0.0))
       }
     }
     List(factor)

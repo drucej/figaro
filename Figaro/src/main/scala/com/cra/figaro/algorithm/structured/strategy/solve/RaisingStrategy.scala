@@ -35,9 +35,9 @@ abstract class RaisingStrategy(problem: Problem, raisingCriteria: RaisingCriteri
    * Get all of the non-constraint factors needed for solving. This includes subproblem factors.
    * @return Non-constraint factors for solving.
    */
-  override def nonConstraintFactors(): List[Factor[Double]] = problem.components.flatMap {
+  override def nonConstraintFactors(): List[Factor[(Double,Double)]] = problem.components.flatMap {
     case chainComp: ChainComponent[_, _] =>
-      chainNonConstraintFactors(chainComp)
+      chainNonConstraintFactors(chainComp) //.map(Factory.convertToDual(_, chainComp.element))
     case comp =>
       comp.nonConstraintFactors()
   }
@@ -48,7 +48,7 @@ abstract class RaisingStrategy(problem: Problem, raisingCriteria: RaisingCriteri
    * @param chainComp Chain component whose subproblems are to be processed.
    * @return All factors associated with subproblems that are needed for solving, grouped by parent value.
    */
-  def subproblemNonConstraintFactors[ParentValue, Value](chainComp: ChainComponent[ParentValue, Value]): Map[ParentValue, List[Factor[Double]]] = {
+  def subproblemNonConstraintFactors[ParentValue, Value](chainComp: ChainComponent[ParentValue, Value]): Map[ParentValue, List[Factor[(Double, Double)]]] = {
     for((parentValue, subproblem) <- chainComp.subproblems) yield {
       val subproblemFactors = if(subproblem.solved) {
         // If the subproblem has a solution, return it
@@ -79,7 +79,7 @@ abstract class RaisingStrategy(problem: Problem, raisingCriteria: RaisingCriteri
    * @return All factors associated with the chain component that are needed for solving. This includes (possibly
    * eliminated) subproblem factors.
    */
-  def chainNonConstraintFactors[ParentValue, Value](chainComp: ChainComponent[ParentValue, Value]): List[Factor[Double]] = {
+  def chainNonConstraintFactors[ParentValue, Value](chainComp: ChainComponent[ParentValue, Value]): List[Factor[(Double,Double)]] = {
     // If the range is {*}, there is no need to raise subproblems because they will all be uniquely *
     if(chainComp.range.regularValues.isEmpty) return chainComp.nonConstraintFactors()
     // Process each subproblem and collect the corresponding factors by parent value

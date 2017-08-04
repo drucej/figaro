@@ -38,3 +38,10 @@ object Constant {
   def apply[T](constant: T)(implicit name: Name[T], collection: ElementCollection) =
     new Constant(name, constant, collection)
 }
+
+
+object DualConstant {
+
+  def apply[T](constant: T)(implicit name: Name[T], collection: ElementCollection) =
+    new Constant(name, constant, collection) with DualElement[T]
+}

@@ -3,9 +3,10 @@ package dscof
 import com.cra.figaro.algorithm.AutomaticDifferentiation.AutoDiffVariableElimination
 import com.cra.figaro.language.{Flip, _}
 import com.cra.figaro.library.compound.If
-
+import com.cra.figaro.language.DualElement
 
 object test {
+
 
   val universe = Universe.universe
 
@@ -14,8 +15,10 @@ object test {
   //  val test2 = If(Flip(param), Constant(1), Constant(2))
   //
 
-  val pThreat = Constant(0.25)("pThreat",universe);
-  val pIndGivenThreat = Constant(0.9)("pIndGivenThreat",universe);
+  //val pThreat = (Constant(0.25)("pThreat",universe)).asInstanceOf[DualElement];
+  val pThreat =  Constant(0.25)("pThreat",universe)
+
+  val pIndGivenThreat = DualConstant(0.9)("pIndGivenThreat",universe);
   val pIndGivenNotThreat = Constant(0.15)("pIndGivenNotThreat",universe);
 
   val Threat = Flip(pThreat)("Threat",universe);

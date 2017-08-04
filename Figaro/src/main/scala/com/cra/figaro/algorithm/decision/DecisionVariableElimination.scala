@@ -79,11 +79,11 @@ trait ProbabilisticVariableEliminationDecision extends VariableElimination[(Doub
       for { (dependentUniverse, evidence) <- dependentUniverses } yield Factory.makeDependentFactor(Variable.cc, universe, dependentUniverse, dependentAlgorithm(dependentUniverse, evidence))
 
     // Convert all non-utility factors from standard factors to decision factors, ie, factors are now tuples of (Double, _)
-    val thisUniverseFactorsExceptUtil_conv = thisUniverseFactorsExceptUtil.map(s => convert(s, false))
+    val thisUniverseFactorsExceptUtil_conv = thisUniverseFactorsExceptUtil //=> convert(s, false))
     val thisUniverseFactorsUtil_conv = thisUniverseFactorsUtil
-    val dependentUniverseFactors_conv = dependentUniverseFactors.map(s => convert(s, false))
-
-    dependentUniverseFactors_conv ::: thisUniverseFactorsExceptUtil_conv ::: thisUniverseFactorsUtil_conv
+    val dependentUniverseFactors_conv = dependentUniverseFactors //=> convert(s, false))
+    val f = dependentUniverseFactors_conv ::: thisUniverseFactorsExceptUtil_conv ::: thisUniverseFactorsUtil_conv
+    f
   }
 
   /*

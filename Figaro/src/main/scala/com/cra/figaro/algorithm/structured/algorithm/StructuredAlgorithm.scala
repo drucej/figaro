@@ -137,8 +137,9 @@ trait LazyStructured extends StructuredAlgorithm {
       // Verify that all entries in the factors are in the range [0.0, 1.0].
       for(factor <- comp.constraintFactors() ; indices <- factor.getIndices) {
         val entry = factor.get(indices)
-        require(0.0 <= entry && entry <= 1.0, s"constraint for element ${comp.element} out of bounds: $entry")
+        require(0.0 <= entry._1 && entry._1 <= 1.0, s"constraint for element ${comp.element} out of bounds: $entry")
       }
     }
   }
 }
+

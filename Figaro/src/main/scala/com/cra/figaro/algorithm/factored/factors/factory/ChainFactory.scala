@@ -29,11 +29,11 @@ object ChainFactory {
 
   import com.cra.figaro.algorithm.factored.factors.factory.Factory
 
-  def makeFactors[T, U](cc: ComponentCollection, chain: Chain[T, U])(implicit mapper: PointMapper[U]): List[Factor[Double]] = {
+  def makeFactors[T, U](cc: ComponentCollection, chain: Chain[T, U])(implicit mapper: PointMapper[U]): List[Factor[(Double,Double)]] = {
     makeMultipleFactors(cc, chain)(mapper)
   }
 
-  def makeMultipleFactors[T, U](cc: ComponentCollection, chain: Chain[T, U])(implicit mapper: PointMapper[U]): List[Factor[Double]] = {
+  def makeMultipleFactors[T, U](cc: ComponentCollection, chain: Chain[T, U])(implicit mapper: PointMapper[U]): List[Factor[(Double,Double)]] = {
     val chainComp = cc(chain)
     val parentVar = Factory.getVariable(cc, chain.parent)
     val chainVar = Factory.getVariable(cc, chain)
@@ -67,11 +67,11 @@ object ChainFactory {
     pairFactor :: tempFactors
   }
 
-  def makeSingleFactor[T, U](cc: ComponentCollection, chain: Chain[T, U])(implicit mapper: PointMapper[U]): List[Factor[Double]] = {
+  def makeSingleFactor[T, U](cc: ComponentCollection, chain: Chain[T, U])(implicit mapper: PointMapper[U]): List[Factor[(Double,Double)]] = {
     val chainComp = cc(chain)
     val parentVar = Factory.getVariable(cc, chain.parent)
     val childVar = Factory.getVariable(cc, chain)
-    val factor = new DenseFactor[Double](List(parentVar), List(childVar))
+    val factor = new DenseFactor[(Double,Double)](List(parentVar), List(childVar))
     for { parentIndex <- 0 until parentVar.range.length } {
       val parentXV = parentVar.range(parentIndex)
       if (parentXV.isRegular && chainComp.subproblems.contains(parentXV.value) && !chainComp.subproblems(parentXV.value).solution.isEmpty) {

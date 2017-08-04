@@ -28,6 +28,17 @@ trait Parameterized[T] extends Element[T] with HasDensity[T] {
    */
   def distributionToStatistics(p: Parameter[_], distribution: Stream[(Double, T)]): Seq[Double]
 }
+trait ParameterizedDual[T] extends Element[T] with HasDualDensity[T] {
+  /**
+    * The parameter for this element.
+    */
+  val parameters: Set[Parameter[_]]
+
+  /**
+    * Convert a distribution from this element into sufficient statistics for the specified parameter
+    */
+  def distributionToStatistics(p: Parameter[_], distribution: Stream[((Double,Double), T)]): Seq[(Double,Double)]
+}
 
 trait SingleParameterized[T] extends Parameterized[T] {
   val parameter: Parameter[_]

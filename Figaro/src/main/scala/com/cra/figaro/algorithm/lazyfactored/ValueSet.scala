@@ -80,10 +80,16 @@ class ValueSet[T](val xvalues: Set[Extended[T]]) {
 
 object ValueSet {
   def withoutStar[T](values: Set[T]) = {
+    println("Building value set from: " + values)
     val xs: Set[Extended[T]] = values.map(Regular(_))
     new ValueSet(xs)
   }
-  
+  def asDualWithoutStar[T](values: Set[T]) = {
+    println("Building dual value set from: " + values)
+    val xs: Set[Extended[T]] = values.map(DualRegular(_))
+    new ValueSet(xs)
+  }
+
   def withStar[T](values: Set[T]) = {
     val xs: Set[Extended[T]] = values.map(Regular(_))
     new ValueSet(xs + Star[T])

@@ -23,7 +23,7 @@ import scala.collection.mutable.ArraySeq
  *
  * @param <T>
  */
-class ConditionalSelector[T](_parents: List[Variable[_]], _output: List[Variable[_]], _semiring: Semiring[T] = SumProductSemiring().asInstanceOf[Semiring[T]])
+class ConditionalSelector[T](_parents: List[Variable[_]], _output: List[Variable[_]], _semiring: Semiring[T] = SumProductDualSemiring().asInstanceOf[Semiring[T]])
   extends DenseFactor[T](_parents, _output, _semiring) {
 
   override def createFactor[T](_parents: List[Variable[_]], _output: List[Variable[_]], _semiring: Semiring[T] = semiring) = 

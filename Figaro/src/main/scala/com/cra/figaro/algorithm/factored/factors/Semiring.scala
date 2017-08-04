@@ -218,6 +218,8 @@ case class BoundsSumProductSemiring() extends DivideableSemiRing[(Double, Double
   val one = (1.0, 1.0)
 }
 
+
+
 case class MaxProductSemiring() extends DivideableSemiRing[Double] with LogConvertibleSemiRing[Double] {
    
   /**

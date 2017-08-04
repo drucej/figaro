@@ -61,7 +61,15 @@ class EvidenceNotAllowedException(element: Element[_]) extends RuntimeException(
  * @param collection The element collection to which this element belongs
  */
 
+trait DualElement[T] extends Element[T]  {
+  override def toString = "Dual(" + super.toString + ")"
+  override val isDual = true;
+}
+
 abstract class Element[T](val name: Name[T], val collection: ElementCollection) {
+
+  val isDual = false
+
   /**
    * The type of values over which the element is defined.
    */
@@ -86,6 +94,8 @@ abstract class Element[T](val name: Name[T], val collection: ElementCollection) 
    * The universe in which the element is defined.
    */
   val universe = collection.universe
+
+
 
   override val hashCode = com.cra.figaro.util.getNextHashCode //We want this to only be called once.
 

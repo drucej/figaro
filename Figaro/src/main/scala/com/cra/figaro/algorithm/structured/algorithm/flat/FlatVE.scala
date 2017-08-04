@@ -36,7 +36,7 @@ object FlatVE {
   /**
    * Use VE to compute the probability that the given element satisfies the given predicate.
    */
-  def probability[T](target: Element[T], predicate: T => Boolean): Double = {
+  def probability[T](target: Element[T], predicate: T => Boolean): (Double,Double) = {
     val alg = FlatVE(target)
     alg.start()
     val result = alg.probability(target, predicate)
@@ -47,6 +47,6 @@ object FlatVE {
   /**
    * Use VE to compute the probability that the given element has the given value.
    */
-  def probability[T](target: Element[T], value: T): Double =
+  def probability[T](target: Element[T], value: T): (Double,Double) =
     probability(target, (t: T) => t == value)
 }

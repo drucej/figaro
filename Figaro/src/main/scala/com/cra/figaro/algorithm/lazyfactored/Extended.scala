@@ -12,6 +12,7 @@
  */
 
 package com.cra.figaro.algorithm.lazyfactored
+import com.cra.figaro.language.Element
 
 /**
  * An extended value, which could either be a regular value or the special value Star.
@@ -21,6 +22,8 @@ sealed abstract class Extended[T] {
    * Return true if the value is a regular value.
    */
   def isRegular: Boolean
+
+  def isDual: Boolean
   
   /**
    * Return the underlying value. Throws an IllegalArgumentException when given Star.
@@ -31,10 +34,21 @@ sealed abstract class Extended[T] {
 /**
  * A regular value.
  */
+//case class Regular[T](val value: T) extends Extended[T] {
+//  def isRegular = true
+//
+//}
 case class Regular[T](val value: T) extends Extended[T] {
   def isRegular = true
+  def isDual = false
+
 }
 
+case class DualRegular[T](val value: T) extends Extended[T] {
+  def isRegular = true
+  def isDual = true
+
+}
 /**
  * The special value Star, which stands for the unknown result of an unexpanded computation.
  * When computing a lower bound to probabilities, we can assume that Star will eventually
@@ -44,6 +58,7 @@ case class Regular[T](val value: T) extends Extended[T] {
  */
 case class Star[T]() extends Extended[T] {
   def isRegular = false
+  def isDual = false
   
   def value: T = throw new IllegalArgumentException("Attempt to get value of Star")
   

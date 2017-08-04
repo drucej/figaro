@@ -13,13 +13,16 @@
 
 package com.cra.figaro.language
 
+import com.cra.figaro.algorithm.factored.factors.SumProductDualSemiring
 import com.cra.figaro.library.atomic.continuous.AtomicDirichlet
 import com.cra.figaro.patterns.learning.ParameterArray
 import com.cra.figaro.patterns.learning.ParameterType
 import com.cra.figaro.patterns.learning.PrimitiveArray
 import com.cra.figaro.util.normalize
+import com.cra.figaro.util.normalizeDual
 import com.cra.figaro.util.random
 import com.cra.figaro.util.selectMultinomial
+import com.cra.figaro.util.selectMultinomialDual
 
 /**
  * Distributions with randomly chosen outcomes. The probabilities can
@@ -58,6 +61,21 @@ class AtomicSelect[T](name: Name[T], clauses: List[(Double, T)], collection: Ele
   def generateValue(rand: Randomness) = selectMultinomial(rand, normalizedClauses)
 }
 
+class AtomicSelectDual[T](name: Name[T], clauses: List[((Double,Double), T)], collection: ElementCollection)
+  extends Select(name, clauses, collection) with AtomicDual[T] {
+  private lazy val normalizedProbs = normalizeDual(probs)
+
+  private lazy val normalizedClauses = normalizedProbs zip outcomes
+
+  def density(outcome: T): (Double, Double) = {
+    val sd = SumProductDualSemiring()
+    (sd.zero /: (normalizedClauses filter (_._2 == outcome)))({ (v1: (Double, Double), v2:((Double,Double),T)) => sd.sum(v1, v2._1)})
+  }
+
+  def generateValue(rand: Randomness) = selectMultinomialDual(rand, normalizedClauses)
+}
+
+
 /**
  * A distribution in which the probabilities are Elements and the outcomes are values.
  */
@@ -72,6 +90,23 @@ class CompoundSelect[T](name: Name[T], clauses: List[(Element[Double], T)], coll
     selectMultinomial(rand, normalized zip outcomes)
   }
 }
+
+/**
+  * A distribution in which the probabilities are Elements and the outcomes are values.
+  */
+class CompoundDualSelect[T](name: Name[T], clauses: List[(Element[(Double,Double)], T)], collection: ElementCollection)
+  extends Select(name, clauses, collection) {
+  def args: List[Element[_]] = probs
+
+  def generateValue(rand: Randomness) = {
+    probs.foreach(prob => if (prob.value.asInstanceOf[(java.lang.Double, java.lang.Double)] == null) prob.generate())
+    val unnormalized = probs map (_.value)
+    val normalized = normalizeDual(unnormalized)
+    //val nzo: Seq[((Double, Double), Any)] = normalized zip outcomes
+    selectMultinomialDual(rand, normalized zip outcomes)
+  }
+}
+
 
 /**
  * A distribution in which the probabilities are learnable parameters and the outcomes are values.
@@ -141,6 +176,19 @@ object Select {
    */
   def apply[T](probabilities: List[Double], outcomes: List[T])(implicit name: Name[T], collection: ElementCollection) =
     new AtomicSelect(name, probabilities zip outcomes, collection)
+
+
+  def apply[T](clauses: ((Double,Double), T)*)(implicit name: Name[T], collection: ElementCollection) =
+    new AtomicSelectDual(name, clauses.toList, collection)
+  /**
+    * A distribution in which both the probabilities and the outcomes are values. Each outcome is
+    * chosen with the corresponding probability.
+    */
+  def apply[T](probabilities: List[(Double,Double)], outcomes: List[T])(implicit name: Name[T], collection: ElementCollection) =
+    new AtomicSelectDual(name, probabilities zip outcomes, collection)
+
+
+
   /**
    * A distribution in which the probabilities are Elements and the outcomes are values.
    */

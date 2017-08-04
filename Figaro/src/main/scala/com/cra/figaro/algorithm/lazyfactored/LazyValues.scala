@@ -61,7 +61,7 @@ class LazyValues(universe: Universe, paramaterized: Boolean = false) {
   private def concreteValues[T](element: Element[T], depth: Int, numArgSamples: Int, numTotalSamples: Int): ValueSet[T] =
     element match {
       case p: Parameter[_] if paramaterized => ValueSet.withoutStar(Set(p.MAPValue))
-      case c: Constant[_]     => withoutStar(Set(c.constant))
+      case c: Constant[_]     => if (!c.isDual) withoutStar(Set(c.constant)) else asDualWithoutStar(Set(c.constant))
       case f: Flip            => withoutStar(Set(true, false))
       case d: Select[_, _]    => withoutStar(Set(d.outcomes: _*))
       case d: Dist[_, _] =>

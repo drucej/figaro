@@ -15,8 +15,11 @@ package com.cra.figaro.algorithm
 
 import com.cra.figaro.language._
 import java.util.concurrent.TimeUnit
+
 import akka.util.Timeout
-import akka.pattern.{ask}
+import akka.pattern.ask
+import com.cra.figaro.algorithm.factored.factors.SumProductDualSemiring
+
 import scala.concurrent.duration
 import scala.concurrent.Await
 
@@ -97,6 +100,87 @@ trait AnytimeProbQuery extends ProbQueryAlgorithm with Anytime {
       case Projection(result) => result.asInstanceOf[List[(T, Double)]]
       case _ => List()
     }     
+  }
+
+}
+
+/**
+  * Anytime algorithms that compute conditional probability of query elements.
+  * A class that implements this trait must implement initialize, runStep, computeDistribution,
+  * and computeExpectation methods.
+  */
+trait AnytimeProbQueryDual extends DualProbQueryAlgorithm with Anytime {
+  /**
+    * A message instructing the handler to compute the distribution of the target element.
+    */
+  case class ComputeDistribution[T](target: Element[T]) extends Service
+  /**
+    * A message from the handler containing the distribution of the previously requested element.
+    */
+  case class Distribution[T](distribution: Stream[((Double,Double), T)]) extends Response
+  /**
+    * A message instructing the handler to compute the expectation of the target element under the given function.
+    */
+  case class ComputeExpectation[T](target: Element[T], function: T => (Double,Double)) extends Service
+  /**
+    * A message from the handler containing the expected value of the previously requested element and function.
+    */
+  case class Expectation(expectation: (Double,Double)) extends Response
+  /**
+    * A message instructing the handler to compute the probability of the predicate for the target element.
+    */
+  case class ComputeProbability[T](target: Element[T], predicate: T => Boolean) extends Service
+  /**
+    * A message from the handler containing the probability of the previously requested predicate and element.
+    */
+  case class Probability(probability: (Double,Double)) extends Response
+  /**
+    * A message instructing the handler to compute the projection of the target element.
+    */
+  case class ComputeProjection[T](target: Element[T]) extends Service
+  /**
+    * A message from the handler containing the projection of the previously requested element.
+    */
+  case class Projection[T](projection: List[(T, (Double,Double))]) extends Response
+
+  def handle(service: Service): Response =
+    service match {
+      case ComputeDistribution(target) =>
+        Distribution(computeDistribution(target))
+      case ComputeExpectation(target, function) =>
+        Expectation(computeExpectation(target, function))
+      case ComputeProbability(target, predicate) =>
+        Probability(computeProbability(target, predicate))
+      case ComputeProjection(target) =>
+        Projection(computeProjection(target))
+    }
+
+  protected def doDistribution[T](target: Element[T]): Stream[((Double,Double), T)] = {
+    awaitResponse(runner ? Handle(ComputeDistribution(target)), messageTimeout.duration) match {
+      case Distribution(result) => result.asInstanceOf[Stream[((Double,Double), T)]]
+      case _ => Stream()
+    }
+  }
+
+  protected def doExpectation[T](target: Element[T], function: T => (Double,Double)): (Double,Double) = {
+    awaitResponse(runner ? Handle(ComputeExpectation(target, function)), messageTimeout.duration) match {
+      case Expectation(result) => result
+      case _ => SumProductDualSemiring().zero
+    }
+  }
+
+  protected override def doProbability[T](target: Element[T], predicate: T => Boolean): (Double,Double) = {
+    awaitResponse(runner ? Handle(ComputeProbability(target, predicate)), messageTimeout.duration) match {
+      case Probability(result) => result
+      case _ => SumProductDualSemiring().zero
+    }
+  }
+
+  protected override def doProjection[T](target: Element[T]): List[(T, (Double,Double))] = {
+    awaitResponse(runner ? Handle(ComputeProjection(target)), messageTimeout.duration) match {
+      case Projection(result) => result.asInstanceOf[List[(T, (Double,Double))]]
+      case _ => List()
+    }
   }
 
 }

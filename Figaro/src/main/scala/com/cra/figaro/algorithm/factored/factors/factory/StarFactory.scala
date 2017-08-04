@@ -28,11 +28,17 @@ object StarFactory {
    *
    * This Factor has only one value whose probability is 1.0
    */
-   def makeStarFactor[T](cc: ComponentCollection, elem: Element[T]): List[Factor[Double]] = {
+   def makeStarFactor[T](cc: ComponentCollection, elem: Element[T]): List[Factor[(Double,Double)]] = {
     val elemVar = Factory.getVariable(cc, elem)
     require(elemVar.range.size == 1 && elemVar.range(0) == Star[T], "Trying to create a star factor from a value set that is not only star")
-    val factor = new DenseFactor[Double](List(), List(elemVar))
-    factor.set(List(0), 1.0)
+    val factor = new DenseFactor[(Double,Double)](List(), List(elemVar))
+     factor.set(List(0), (1.0, 0.0))
+//     if (elem.isDual) {
+//       factor.set(List(0), (1.0, 1.0))
+//     }
+//     else {
+//       factor.set(List(0), (1.0, 0.0))
+//     }
     List(factor)
   }
 }

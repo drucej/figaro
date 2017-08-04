@@ -15,21 +15,19 @@ package com.cra.figaro.algorithm.structured
 
 import com.cra.figaro.algorithm.factored.factors.Factor
 import com.cra.figaro.algorithm.factored.factors.Variable
-import com.cra.figaro.algorithm.factored.gibbs.Gibbs
-import com.cra.figaro.algorithm.factored.factors.SumProductSemiring
-import com.cra.figaro.algorithm.factored.factors.MaxProductSemiring
+import com.cra.figaro.algorithm.factored.factors.SumProductDualSemiring
 
 package object solver {
   /**
    * A solution consists of the eliminated factors over globals, and the map of recording factors.
    */
-  type Solution = (List[Factor[Double]], Map[Variable[_], Factor[_]])
+  type Solution = (List[Factor[(Double,Double)]], Map[Variable[_], Factor[_]])
 
   /**
    * A Solver takes a set of variables to eliminate, a set of variables to preserve, and a list of factors.
    * It returns a list of factors that mention only the preserved variables.
    */
-  type Solver = (Problem, Set[Variable[_]], Set[Variable[_]], List[Factor[Double]]) => Solution
+  type Solver = (Problem, Set[Variable[_]], Set[Variable[_]], List[Factor[(Double,Double)]]) => Solution
 
   /**
    * Creates a Gibbs sampling solver.
@@ -42,10 +40,10 @@ package object solver {
    * @param toPreserve the variables to be preserved (not eliminated)
    * @param factors all the factors in the problem
    */
-  def marginalGibbs(numSamples: Int, burnIn: Int, interval: Int, blockToSampler: Gibbs.BlockSamplerCreator)(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
-    val gibbs = new GibbsSolver(problem, toEliminate, toPreserve, factors, numSamples, burnIn, interval, blockToSampler)
-    (gibbs.go(), Map())
-  }
+//  def marginalGibbs(numSamples: Int, burnIn: Int, interval: Int, blockToSampler: Gibbs.BlockSamplerCreator)(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
+//    val gibbs = new GibbsSolver(problem, toEliminate, toPreserve, factors, numSamples, burnIn, interval, blockToSampler)
+//    (gibbs.go(), Map())
+//  }
 
   /**
    * Creates a variable elimination solver.
@@ -54,8 +52,8 @@ package object solver {
    * @param toPreserve the variables to be preserved (not eliminated)
    * @param factors all the factors in the problem
    */
-  def marginalVariableElimination(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
-    val ve = new VESolver(problem, toEliminate, toPreserve, factors, SumProductSemiring())
+  def marginalVariableElimination(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[(Double,Double)]]): Solution = {
+    val ve = new VESolver(problem, toEliminate, toPreserve, factors, SumProductDualSemiring())
     ve.go()
   }
 
@@ -66,10 +64,10 @@ package object solver {
    * @param toPreserve the variables to be preserved (not eliminated)
    * @param factors all the factors in the problem
    */
-  def mpeVariableElimination(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
-    val ve = new VESolver(problem, toEliminate, toPreserve, factors, MaxProductSemiring())
-    ve.go()
-  }
+//  def mpeVariableElimination(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
+//    val ve = new VESolver(problem, toEliminate, toPreserve, factors, MaxProductSemiring())
+//    ve.go()
+//  }
 
   /**
    * Creates a belief propagation solver.
@@ -79,11 +77,11 @@ package object solver {
    * @param toPreserve the variables to be preserved (not eliminated)
    * @param factors all the factors in the problem
    */
-  def marginalBeliefPropagation(iterations: Int = 100)(problem: Problem, toEliminate: Set[Variable[_]],
-    toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
-    val bp = new BPSolver(problem, toEliminate, toPreserve, factors, iterations, SumProductSemiring())
-    bp.go()
-  }
+//  def marginalBeliefPropagation(iterations: Int = 100)(problem: Problem, toEliminate: Set[Variable[_]],
+//    toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
+//    val bp = new BPSolver(problem, toEliminate, toPreserve, factors, iterations, SumProductSemiring())
+//    bp.go()
+//  }
   
     /**
    * Creates an MPE belief propagation solver.
@@ -93,10 +91,10 @@ package object solver {
    * @param toPreserve the variables to be preserved (not eliminated)
    * @param factors all the factors in the problem
    */
-  def mpeBeliefPropagation(iterations: Int = 100)(problem: Problem, toEliminate: Set[Variable[_]],
-    toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
-    val bp = new BPSolver(problem, toEliminate, toPreserve, factors, iterations, MaxProductSemiring())
-    bp.go()
-  }
+//  def mpeBeliefPropagation(iterations: Int = 100)(problem: Problem, toEliminate: Set[Variable[_]],
+//    toPreserve: Set[Variable[_]], factors: List[Factor[Double]]): Solution = {
+//    val bp = new BPSolver(problem, toEliminate, toPreserve, factors, iterations, MaxProductSemiring())
+//    bp.go()
+//  }
 
 }

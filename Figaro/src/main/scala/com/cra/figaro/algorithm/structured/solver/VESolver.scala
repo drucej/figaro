@@ -19,46 +19,49 @@ import com.cra.figaro.algorithm.factored.factors.Semiring
 import com.cra.figaro.util
 import com.cra.figaro.algorithm.lazyfactored._
 
-class VESolver(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[Double]], val semiring: Semiring[Double])
-  extends com.cra.figaro.algorithm.factored.VariableElimination[Double] {
+class VESolver(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[Variable[_]], factors: List[Factor[(Double,Double)]], val semiring: Semiring[(Double,Double)])
+  extends com.cra.figaro.algorithm.factored.VariableElimination[(Double,Double)] {
 
   debug = false
   
   override val comparator = semiring match {
-    case sum: SumProductSemiring => None
-    case max: MaxProductSemiring => Some((x: Double, y: Double) => x < y)
+    case sumDual: SumProductDualSemiring => None
+    //case sum: SumProductSemiring => None
+    //case max: MaxProductSemiring => Some((x: Double, y: Double) => x < y)
   }
 
-  def go(): (List[Factor[Double]], Map[Variable[_], Factor[_]]) = {
+  def go(): (List[Factor[(Double,Double)]], Map[Variable[_], Factor[_]]) = {
     // Convert factors to MaxProduct for MPE
     val convertedFactors = semiring match {
-      case sum: SumProductSemiring => factors
-      case max: MaxProductSemiring => factors.map(_.mapTo(x => x, semiring))
+      //case sum: SumProductSemiring => factors
+      case sumDual: SumProductDualSemiring => factors
+      //case max: MaxProductSemiring => factors.map(_.mapTo(x => x, semiring))
     }
+
     doElimination(convertedFactors, toPreserve.toList)
     (resultFactors, recordingFactorsMap)
   }
 
-  private var resultFactors: List[Factor[Double]] = _
+  private var resultFactors: List[Factor[(Double,Double)]] = _
   // A map from each variable to a factor that maps values of the toPreserve variables to maximal values of the variable
   // Note that when the toPreserve is empty, this represents the maximal value of each variable
   private var recordingFactorsMap: Map[Variable[_], Factor[_]] = Map()
   private def getRecordingFactor[T](variable: Variable[T]): Factor[T] = recordingFactorsMap(variable).asInstanceOf[Factor[variable.Value]]
 
-  def finish(factorsAfterElimination: MultiSet[Factor[Double]], eliminationOrder: List[Variable[_]]): Unit = {
+  def finish(factorsAfterElimination: MultiSet[Factor[(Double,Double)]], eliminationOrder: List[Variable[_]]): Unit = {
     semiring match {
-      case sum: SumProductSemiring => finishSum(factorsAfterElimination, eliminationOrder)
-      case max: MaxProductSemiring => finishMax(factorsAfterElimination, eliminationOrder)
+      case sum: SumProductDualSemiring => finishSum(factorsAfterElimination, eliminationOrder)
+      //case max: MaxProductSemiring => finishMax(factorsAfterElimination, eliminationOrder)
     }
   }
 
   /* Finish function for marginal VE */
-  def finishSum(factorsAfterElimination: MultiSet[Factor[Double]], eliminationOrder: List[Variable[_]]): Unit = {
+  def finishSum(factorsAfterElimination: MultiSet[Factor[(Double,Double)]], eliminationOrder: List[Variable[_]]): Unit = {
     resultFactors = factorsAfterElimination.toList
   }
 
   /* Finish function for MPE VE */
-  def finishMax(factorsAfterElimination: MultiSet[Factor[Double]], eliminationOrder: List[Variable[_]]): Unit = {
+  def finishMax(factorsAfterElimination: MultiSet[Factor[(Double,Double)]], eliminationOrder: List[Variable[_]]): Unit = {
     resultFactors = factorsAfterElimination.toList
     /* If empty, we need to know the max values for all variables in this set of factors
      *  Otherwise, we assume that the eliminated varaibles are internal and therefore are not queryable
@@ -86,7 +89,7 @@ class VESolver(problem: Problem, toEliminate: Set[Variable[_]], toPreserve: Set[
 
   def getFactors(neededElements: List[com.cra.figaro.language.Element[_]],
     targetElements: List[com.cra.figaro.language.Element[_]],
-    upperBounds: Boolean): List[com.cra.figaro.algorithm.factored.factors.Factor[Double]] = null
+    upperBounds: Boolean): List[com.cra.figaro.algorithm.factored.factors.Factor[(Double,Double)]] = null
 
   val showTiming: Boolean = false
 

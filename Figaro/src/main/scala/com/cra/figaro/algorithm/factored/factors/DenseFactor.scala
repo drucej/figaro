@@ -30,7 +30,7 @@ import scala.collection.mutable.ArraySeq
  * Parent variables are distinguished from the output variable.
  *
  */
-class DenseFactor[T](val parents: List[Variable[_]], val output: List[Variable[_]], val semiring: Semiring[T] = SumProductSemiring().asInstanceOf[Semiring[T]])
+class DenseFactor[T](val parents: List[Variable[_]], val output: List[Variable[_]], val semiring: Semiring[T] = SumProductDualSemiring().asInstanceOf[Semiring[T]])
   extends BasicFactor[T] {
 
   override def createFactor[T](parents: List[Variable[_]], output: List[Variable[_]], _semiring: Semiring[T] = semiring): Factor[T] =

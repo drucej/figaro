@@ -36,7 +36,7 @@ trait VariableElimination[T] extends FactoredAlgorithm[T] with OneTime {
    * By default, implementations that inherit this trait have no debug information.
    * Override this if you want a debugging option.
    */
-  var debug: Boolean = false
+  var debug: Boolean = true
 
   /**
    * The universe on which this variable elimination algorithm should be applied.
@@ -190,8 +190,8 @@ trait VariableElimination[T] extends FactoredAlgorithm[T] with OneTime {
 /**
  * Variable elimination over probabilistic factors.
  */
-trait ProbabilisticVariableElimination extends VariableElimination[Double] {
-  def getFactors(allElements: List[Element[_]], targetElements: List[Element[_]], upper: Boolean = false): List[Factor[Double]] = {
+trait ProbabilisticVariableElimination extends VariableElimination[(Double,Double)] {
+  def getFactors(allElements: List[Element[_]], targetElements: List[Element[_]], upper: Boolean = false): List[Factor[(Double,Double)]] = {
     if (debug) {
       println("Elements appearing in factors and their ranges:")
       for { element <- allElements } {
@@ -214,37 +214,40 @@ class ProbQueryVariableElimination(override val universe: Universe, targets: Ele
   val showTiming: Boolean,
   val dependentUniverses: List[(Universe, List[NamedEvidence[_]])],
   val dependentAlgorithm: (Universe, List[NamedEvidence[_]]) => () => Double)
-  extends OneTimeProbQuery
+  extends OneTimeDualProbQuery
   with ProbabilisticVariableElimination {
   val targetElements = targets.toList
   lazy val queryTargets = targets.toList
 
-  val semiring = SumProductSemiring()
+  val semiring = SumProductDualSemiring()
 
-  private def marginalizeToTarget(factor: Factor[Double], target: Element[_]): Unit = {
+  private def marginalizeToTarget(factor: Factor[(Double,Double)], target: Element[_]): Unit = {
     val unnormalizedTargetFactor = factor.marginalizeTo(Variable(target))
-    val z = unnormalizedTargetFactor.foldLeft(semiring.zero, _ + _)
+    val z = unnormalizedTargetFactor.foldLeft(semiring.zero, (x: (Double, Double), y: (Double, Double)) => semiring.sum(x,y))
+
     //val targetFactor = Factory.make[Double](unnormalizedTargetFactor.variables)
-    val targetFactor = unnormalizedTargetFactor.mapTo((d: Double) => d / z)
+    val targetFactor = unnormalizedTargetFactor.mapTo(d => semiring.divide(d, z))
+    //val targetFactor = unnormalizedTargetFactor.mapTo((d: (Double,Double) => semiring.d )
     targetFactors += target -> targetFactor
   }
 
-  private def marginalize(resultFactor: Factor[Double]) =
+  private def marginalize(resultFactor: Factor[(Double, Double)]) =
     targets foreach (marginalizeToTarget(resultFactor, _))
 
-  private def makeResultFactor(factorsAfterElimination: MultiSet[Factor[Double]]): Factor[Double] = {
+  private def makeResultFactor(factorsAfterElimination: MultiSet[Factor[(Double,Double)]]): Factor[(Double,Double)] = {
     // It is possible that there are no factors (this will happen if there are  no queries or evidence).
     // Therefore, we start with the unit factor and use foldLeft, instead of simply reducing the factorsAfterElimination.
+    val u = Factory.unit(semiring)
     factorsAfterElimination.foldLeft(Factory.unit(semiring))(_.product(_))
   }
 
-  def finish(factorsAfterElimination: MultiSet[Factor[Double]], eliminationOrder: List[Variable[_]]) =
+  def finish(factorsAfterElimination: MultiSet[Factor[(Double,Double)]], eliminationOrder: List[Variable[_]]) =
     marginalize(makeResultFactor(factorsAfterElimination))
 
   /**
    * Computes the normalized distribution over a single target element.
    */
-  def computeDistribution[T](target: Element[T]): Stream[(Double, T)] = {
+  def computeDistribution[T](target: Element[T]): Stream[((Double,Double), T)] = {
     val factor = targetFactors(target)
     if (factor.numVars > 1) throw new UnsupportedAlgorithmException(target)
     val targetVar = if (factor.output.nonEmpty) factor.output.head.asInstanceOf[Variable[T]] else factor.parents.head.asInstanceOf[Variable[T]]
@@ -256,9 +259,12 @@ class ProbQueryVariableElimination(override val universe: Universe, targets: Ele
   /**
    * Computes the expectation of a given function for single target element.
    */
-  def computeExpectation[T](target: Element[T], function: T => Double): Double = {
-    def get(pair: (Double, T)) = pair._1 * function(pair._2)
-    (0.0 /: computeDistribution(target))(_ + get(_))
+  def computeExpectation[T](target: Element[T], function: T => (Double,Double)): (Double,Double) = {
+    def get(pair: ((Double,Double), T)) = semiring.product(pair._1, function(pair._2))
+//    (0.0 /: computeDistribution(target))(_ + get(_))
+
+    (semiring.zero /: computeDistribution(target))( { (v1: (Double, Double), v2: ((Double, Double), T))  => semiring.sum(v1, v2._1)})
+
   }
 }
 
@@ -354,7 +360,7 @@ object VariableElimination {
   /**
    * Use VE to compute the probability that the given element satisfies the given predicate.
    */
-  def probability[T](target: Element[T], predicate: T => Boolean): Double = {
+  def probability[T](target: Element[T], predicate: T => Boolean): (Double,Double) = {
     val alg = VariableElimination(target)
     alg.start()
     val result = alg.probability(target, predicate)
@@ -365,6 +371,6 @@ object VariableElimination {
   /**
    * Use VE to compute the probability that the given element has the given value.
    */
-  def probability[T](target: Element[T], value: T): Double =
+  def probability[T](target: Element[T], value: T): (Double,Double) =
     probability(target, (t: T) => t == value)
 }

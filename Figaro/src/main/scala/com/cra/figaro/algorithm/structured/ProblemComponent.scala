@@ -60,7 +60,7 @@ class ProblemComponent[Value](val problem: Problem, val element: Element[Value])
   /**
    * Gets the constraint factors for this component. Returns the lower bound factors unless an Upper argument is provided.
    */
-  def constraintFactors(bounds: Bounds = Lower): List[Factor[Double]] = {
+  def constraintFactors(bounds: Bounds = Lower): List[Factor[(Double,Double)]] = {
     val upper = bounds == Upper
     ConstraintFactory.makeFactors(problem.collection, element, upper)
   }
@@ -71,7 +71,7 @@ class ProblemComponent[Value](val problem: Problem, val element: Element[Value])
    *  parameterized elements should have special factors created that use the MAP values of their arguments. This
    *  defaults to false.
    */
-  def nonConstraintFactors(parameterized: Boolean = false): List[Factor[Double]] = {
+  def nonConstraintFactors(parameterized: Boolean = false): List[Factor[(Double,Double)]] = {
     Factory.makeFactors(problem.collection, element, parameterized).map(_.deDuplicate)
   }
 

@@ -13,6 +13,8 @@
 
 package com.cra.figaro
 
+import com.cra.figaro.algorithm.factored.factors.SumProductDualSemiring
+
 import scala.collection.mutable.Map
 
 package object util {
@@ -100,6 +102,18 @@ package object util {
   }
 
   /**
+    * Normalize the given list of doubles so that the proportions remain constant and they sum to 1.
+    * An exception will be thrown if the inputs sum to 0.
+    */
+  def normalizeDual(unnormalized: List[(Double,Double)]): List[(Double,Double)] = {
+    val sd = SumProductDualSemiring()
+    val normalizer = (sd.zero /: unnormalized)({ (v1:(Double, Double), v2: (Double,Double)) => sd.sum(v1, v2)})
+    if (normalizer._1 == 0.0) throw new ZeroTotalUnnormalizedProbabilityException
+    unnormalized.map({ f => sd.divide(f, normalizer)})
+  }
+
+
+  /**
    * Sample a value given a multinomial distribution. The input is a list of pairs where each pair
    * specifies a value and its associated probability. This method assumes the probabilities sum to
    * 1.
@@ -120,6 +134,19 @@ package object util {
       case Nil => throw new InvalidMultinomialIndexException
     }
   }
+  /*
+ * Select an element of a multinomial using a Double index.
+ */
+  private[figaro] def selectMultinomialDual[T](index: Double, clauses: List[((Double,Double), T)]): T = {
+    val sd = SumProductDualSemiring()
+    clauses match {
+      case (firstProb, firstResult) :: restClauses =>
+        if (index < firstProb._1) firstResult
+        else selectMultinomialDual(index - firstProb._1, restClauses)
+      case Nil => throw new InvalidMultinomialIndexException
+    }
+  }
+
   /**
    * Returns the Cartesian product of any number of inputs. The results are returned in
    * lexicographic order.

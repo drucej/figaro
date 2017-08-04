@@ -23,3 +23,9 @@ trait Atomic[T] extends Element[T] with HasDensity[T] {
    */
   def args: List[Element[_]] = List()
 }
+trait AtomicDual[T] extends Element[T] with HasDualDensity[T] {
+  /**
+    * Returns an empty list.
+    */
+  def args: List[Element[_]] = List()
+}
