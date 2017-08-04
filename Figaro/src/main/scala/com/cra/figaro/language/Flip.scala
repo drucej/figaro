@@ -126,3 +126,40 @@ object Flip extends Creatable {
   /** Used for reflection. */
   def create(args: List[Element[_]]) = apply(args(0).asInstanceOf[Element[Double]])
 }
+
+object DualFlip extends Creatable {
+  /**
+    * A coin toss in which the weight is a fixed constant.
+    */
+  def apply(prob: Double)(implicit name: Name[Boolean], collection: ElementCollection) =
+    new AtomicFlip(name, prob, collection) with DualElement[Boolean]
+
+  def apply(prob: ParameterType)(implicit name: Name[Boolean], collection: ElementCollection): Flip = {
+    val result = prob match {
+      case a: PrimitiveDouble => { this.apply(a.d)(name,collection) }
+      case b: ParameterDouble => {
+        b.p match {
+          case p: Parameter[Double] => this.apply(b.p)(name,collection)
+        }
+      }
+    }
+    result
+  }
+
+  /**
+    * A coin toss where the weight is itself an element.
+    *
+    * If the element is an atomic beta element, the flip uses that element
+    * as a learnable parameter.
+    */
+  def apply(prob: Element[Double])(implicit name: Name[Boolean], collection: ElementCollection) = {
+    if (prob.isInstanceOf[AtomicBeta]) new ParameterizedFlip(name, prob.asInstanceOf[AtomicBeta], collection) with DualElement[Boolean]
+    else new CompoundFlip(name, prob, collection) with DualElement[Boolean]
+  }
+
+  /** Used for reflection. */
+  type ResultType = Boolean
+
+  /** Used for reflection. */
+  def create(args: List[Element[_]]) = apply(args(0).asInstanceOf[Element[Double]])
+}

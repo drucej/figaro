@@ -83,6 +83,7 @@ object ComplexFactory {
   def makeFactors[T](cc: ComponentCollection, element: MultiValuedReferenceElement[T]): List[Factor[(Double,Double)]] = {
     def makeEmbeddedInject(inputVariables: List[Variable[MultiSet[T]]]): (Variable[List[MultiSet[T]]], Factor[(Double,Double)]) = {
       def rule(values: List[Extended[_]]) = {
+        println("Filling factor by rule, values: " + values)
         val inputXvalues :+ resultXvalue = values
         if (inputXvalues.exists(!_.isRegular)) {
           if (!resultXvalue.isRegular) (1.0, if (resultXvalue.isDual) 1.0 else 0.0); else (0.0, if (resultXvalue.isDual) 1.0 else 0.0)
