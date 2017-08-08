@@ -84,7 +84,7 @@ class ProbQueryVariableEliminationAutoDiff[T](override val universe: Universe, d
   val showTiming: Boolean,
   val dependentUniverses: List[(Universe, List[NamedEvidence[_]])],
   val dependentAlgorithm: (Universe, List[NamedEvidence[_]]) => () => Double)
-  extends OneTimeProbQuery
+  extends OneTimeDualProbQuery
     with AutomaticDifferentiationVariableEliminationDan
 {
   lazy val queryTargets = List(targetQuery)
