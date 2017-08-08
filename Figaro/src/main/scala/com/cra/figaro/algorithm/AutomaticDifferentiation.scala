@@ -121,6 +121,23 @@ class ProbQueryVariableEliminationAutoDiff[T](override val universe: Universe, d
     marginalize(makeResultFactor(factorsAfterElimination))
 
 
+  def computeDistribution[T](target: Element[T]): Stream[((Double,Double), T)] = {
+    val factor = targetFactors(target)
+    if (factor.numVars > 1) throw new UnsupportedAlgorithmException(target)
+    val targetVar = if (factor.output.nonEmpty) factor.output.head.asInstanceOf[Variable[T]] else factor.parents.head.asInstanceOf[Variable[T]]
+    val dist = factor.getIndices.filter(f => targetVar.range(f.head).isRegular).map(f => (factor.get(f), targetVar.range(f.head).value))
+    // normalization is unnecessary here because it is done in marginalizeTo
+    dist.toStream
+  }
+  def computeExpectation[T](target: Element[T], function: T => (Double,Double)): (Double,Double) = {
+    def get(pair: ((Double,Double), T)) = semiring.product(pair._1, function(pair._2))
+    //    (0.0 /: computeDistribution(target))(_ + get(_))
+
+    (semiring.zero /: computeDistribution(target))( { (v1: (Double, Double), v2: ((Double, Double), T))  => semiring.sum(v1, v2._1)})
+
+  }
+}
+    /* moved to (double,double) - dscof
   def computeDistribution[T](target: Element[T]): Stream[(Double, T)] = {
     val factor = targetFactors(target)
     val targetVar = Variable(target)
@@ -133,8 +150,8 @@ class ProbQueryVariableEliminationAutoDiff[T](override val universe: Universe, d
     def get(pair: (Double, T)) = pair._1 * function(pair._2)
     (0.0 /: computeDistribution(target))(_ + get(_))
   }
-
 }
+*/
 
 object AutoDiffVariableElimination {
 

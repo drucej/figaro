@@ -16,9 +16,9 @@ object test {
   //
 
   //val pThreat = (Constant(0.25)("pThreat",universe)).asInstanceOf[DualElement];
-  val pThreat =  DualConstant(0.25)("pThreat",universe)
+  val pThreat =  Constant(0.25)("pThreat",universe)
 
-  val pIndGivenThreat = Constant(0.9)("pIndGivenThreat",universe);
+  val pIndGivenThreat = DualConstant(0.9)("pIndGivenThreat",universe);
   val pIndGivenNotThreat = Constant(0.15)("pIndGivenNotThreat",universe);
 
   val Threat = Flip(pThreat)("Threat",universe);
