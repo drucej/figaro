@@ -16,8 +16,6 @@ import scoverage.ScoverageSbtPlugin._
     crossPaths := true,
     publishMavenStyle := true,
     retrieveManaged := true,
-	excludeFilter := "ParticleBeliefPropagation.scala" || "SufficientStatisticsFactor.scala"||"Gibbs.scala"||"BeliefPropagation.scala"||"MarginalMAPBeliefPropagation.scala"||"CollapsedGibbs.scala"||"CollapsedProbQueryGibbs.scala"||"GibbsSolver.scala"||"BPSolver.scala"||"GeneralizedEM.scala"||"ProbEvidenceBeliefPropagation.scala"||"MPEBeliefPropagation.scala"||"InnerBPHandler.scala"||"MPEVariableElimination.scala"||"FactoredFrontier.scala"||"SufficientStatisticsVariableElimination.scala"||"Collapsers.scala"||"FlatGibbs.scala"||"FlatBP.scala"||"StructuredMPEBP.scala"||"StructuredMPEVE.scala"||"VEBPGibbsStrategy.scala"||"VEBPStrategy.scala"||"VEGibbsStrategy.scala"||"MarginalMAPVEStrategy.scala"||"StructuredGibbs.scala"||"StructuredBP.scala"||"StructuredVEBPGibbsChooser.scala"||"StructuredVEBPChooser.scala"||"StructuredVEGibbsChooser.scala"||"StructuredMarginalMAPVE.scala"||"ResultsGUI.scala"||"BlockSampler.scala"||"Distribution.scala"||"Histogram.scala"||"ResultsTable.scala",
-
     pomExtra :=
 	<url>http://www.github.com/p2t2/figaro</url>
 	<developers>
@@ -41,9 +39,7 @@ import scoverage.ScoverageSbtPlugin._
 	</scm>
   )
 
-
   lazy val scalaMajorMinor = "2.11"
-  
 
   // Read exisiting Figaro MANIFEST.MF from file
   lazy val figaroManifest = Using.fileInputStream(file("Figaro/META-INF/MANIFEST.MF")) { 
@@ -51,16 +47,16 @@ import scoverage.ScoverageSbtPlugin._
   }
 
   // Read exisiting FigaroExamples MANIFEST.MF from file
-  //lazy val examplesManifest = Using.fileInputStream(file("FigaroExamples/META-INF/MANIFEST.MF")) {
-  //  in => new java.util.jar.Manifest(in)
-  //}
+  lazy val examplesManifest = Using.fileInputStream(file("FigaroExamples/META-INF/MANIFEST.MF")) {
+    in => new java.util.jar.Manifest(in)
+  }
 
   lazy val root = Project("root", file("."))
     .settings(figaroSettings)
     .settings(publishLocal := {})
     .settings(publish := {})
-//    .dependsOn(figaro, examples)
-//    .aggregate(figaro, examples)
+    .dependsOn(figaro, examples)
+    .aggregate(figaro, examples)
 
   lazy val figaro = Project("Figaro", file("Figaro"))
     .settings(figaroSettings)
@@ -89,14 +85,14 @@ import scoverage.ScoverageSbtPlugin._
     // Increase max memory for JVM for both testing and runtime
     .settings(javaOptions in (Test,run) += "-Xmx6G")
     // test settings
-//    .settings(parallelExecution in Test := false)
-//    .settings(testOptions in Test += Tests.Argument("-oD"))
-//    .configs(detTest)
-//    .settings(inConfig(detTest)(Defaults.testTasks): _*)
-//    .settings(testOptions in detTest := Seq(Tests.Argument("-l", "com.cra.figaro.test.nonDeterministic")))
-//    .configs(nonDetTest)
-//    .settings(inConfig(nonDetTest)(Defaults.testTasks): _*)
-//    .settings(testOptions in nonDetTest := Seq(Tests.Argument("-n", "com.cra.figaro.test.nonDeterministic")))
+    .settings(parallelExecution in Test := false)
+    .settings(testOptions in Test += Tests.Argument("-oD"))
+    .configs(detTest)
+    .settings(inConfig(detTest)(Defaults.testTasks): _*)
+    .settings(testOptions in detTest := Seq(Tests.Argument("-l", "com.cra.figaro.test.nonDeterministic")))
+    .configs(nonDetTest)
+    .settings(inConfig(nonDetTest)(Defaults.testTasks): _*)
+    .settings(testOptions in nonDetTest := Seq(Tests.Argument("-n", "com.cra.figaro.test.nonDeterministic")))
     // sbt-assembly settings
     .settings(assemblySettings: _*)
     .settings(test in assembly := {})
@@ -112,14 +108,14 @@ import scoverage.ScoverageSbtPlugin._
     // SBTEclipse settings
     .settings(EclipseKeys.eclipseOutput := Some("target/scala-2.11/classes"))
       
-//  lazy val examples = Project("FigaroExamples", file("FigaroExamples"))
-//    .dependsOn(figaro)
-//    .settings(figaroSettings)
-//    .settings(packageOptions := Seq(Package.JarManifest(examplesManifest)))
+  lazy val examples = Project("FigaroExamples", file("FigaroExamples"))
+    .dependsOn(figaro)
+    .settings(figaroSettings)
+    .settings(packageOptions := Seq(Package.JarManifest(examplesManifest)))
     // SBTEclipse settings
-//    .settings(EclipseKeys.eclipseOutput := Some("target/scala-2.11/classes"))
+    .settings(EclipseKeys.eclipseOutput := Some("target/scala-2.11/classes"))
     // Copy all managed dependencies to \lib_managed directory
-//    .settings(retrieveManaged := true)
+    .settings(retrieveManaged := true)
 
-//  lazy val detTest = config("det") extend(Test)
-//  lazy val nonDetTest = config("nonDet") extend(Test)
+  lazy val detTest = config("det") extend(Test)
+  lazy val nonDetTest = config("nonDet") extend(Test)
