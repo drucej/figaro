@@ -15,7 +15,7 @@ package com.cra.figaro.test.algorithm.adfactored
 
 import com.cra.figaro.algorithm.factored.{ADVariableElimination, VariableElimination}
 import com.cra.figaro.language._
-import com.cra.figaro.library.compound.If
+import com.cra.figaro.library.compound.{CPD, If}
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.language.postfixOps
@@ -35,15 +35,83 @@ class ADVariableEliminationTest extends WordSpec with Matchers {
       checkValue(deriv, expectedDerivative)
     }
 
-    "show Jeff how to create test cases by replicating this block" in {
-      val pThreat =  Constant(0.25)
-      val pIndGivenThreat = Constant(0.9)
+    "work on Jeff's Model3Node" in {
+      val pThreat = 0.25
+      val pIndGivenThreat = Constant(0.7)
       val pIndGivenNotThreat = Constant(0.15)
-      val threat = Flip(pThreat)
-      val indicator =  Flip(If(threat,pIndGivenThreat,pIndGivenNotThreat))
+      val pAlertGivenInd = Constant(0.9)
+      val pAlertGivenNotInd = Constant(0.12)
+
+      val Threat = Flip(pThreat)
+      val Ind = Flip(If(Threat, pIndGivenThreat, pIndGivenNotThreat))
+      val Alert = Flip(If(Ind, pAlertGivenInd, pAlertGivenNotInd))
 
       val expectedDerivative = 0.25
-      val (prob, deriv) = runADVEandVE(pIndGivenThreat, indicator, true)
+      val (prob, deriv) = runADVEandVE(pAlertGivenInd, Alert, true)
+      checkValue(deriv, expectedDerivative)
+    }
+
+    "work on Jeff's Model2Indicator" in {
+      val pThreat = 0.25
+      val pInd1GivenThreat = Constant(0.7)
+      val pInd1GivenNotThreat = Constant(0.15)
+      val pInd2GivenThreat = Constant(0.7)
+      val pInd2GivenNotThreat = Constant(0.15)
+      val pAlertGivenInd1AndInd2 = Constant(0.9)
+      val pAlertGivenInd1AndNotInd2 = Constant(0.72)
+      val pAlertGivenNotInd1AndInd2 = Constant(0.64)
+      val pAlertGivenNotInd1AndNotInd2 = Constant(0.18)
+
+      val Threat = Flip(pThreat)
+      val Ind1 = Flip(If(Threat, pInd1GivenThreat, pInd1GivenNotThreat))
+      val Ind2 = Flip(If(Threat, pInd2GivenThreat, pInd2GivenNotThreat))
+
+      val Alert = CPD(Ind1, Ind2,
+        (false, false) -> Flip(pAlertGivenNotInd1AndNotInd2),
+        (false, true) -> Flip(pAlertGivenNotInd1AndInd2),
+        (true, false) -> Flip(pAlertGivenInd1AndNotInd2),
+        (true, true) -> Flip(pAlertGivenInd1AndInd2))
+
+      val expectedDerivative = 0.25
+      val (prob, deriv) = runADVEandVE(pAlertGivenInd1AndInd2, Alert, true)
+      checkValue(deriv, expectedDerivative)
+    }
+
+    "work on Jeff's Model3IndicatorDownSelect" in {
+      val pThreat = 0.25
+      val pInd1GivenThreat = Constant(0.7)
+      val pInd1GivenNotThreat = Constant(0.15)
+      val pInd2GivenThreat = Constant(0.7)
+      val pInd2GivenNotThreat = Constant(0.15)
+      val pInd3GivenThreat = Constant(0.7)
+      val pInd3GivenNotThreat = Constant(0.15)
+
+      val pAlertGivenInd1AndInd2AndInd3 = Constant(0.9)
+      val pAlertGivenNotInd1Ind2Ind3 = Constant(0.18)
+      val pAlertGivenInd1NotInd2Ind3 = Constant(0.72)
+      val pAlertGivenInd1Ind2NotInd3 = Constant(0.64)
+      val pAlertGivenNotInd1NotInd2Ind3 = Constant(0.9)
+      val pAlertGivenNotInd1Ind2NotInd3 = Constant(0.72)
+      val pAlertGivenInd1NotInd2NotInd3 = Constant(0.64)
+      val pAlertGivenNotInd1NotInd2NotInd3 = Constant(0.18)
+
+      val Threat = Flip(pThreat)
+      val Ind1 = Flip(If(Threat, pInd1GivenThreat, pInd1GivenNotThreat))
+      val Ind2 = Flip(If(Threat, pInd2GivenThreat, pInd2GivenNotThreat))
+      val Ind3 = Flip(If(Threat, pInd3GivenThreat, pInd3GivenNotThreat))
+
+      val Alert = CPD(Ind1, Ind2, Ind3,
+        (true, true, true) -> Flip(pAlertGivenInd1AndInd2AndInd3),
+        (false, true, true) -> Flip(pAlertGivenNotInd1Ind2Ind3),
+        (true, false, true) -> Flip(pAlertGivenInd1NotInd2Ind3),
+        (true, true, false) -> Flip(pAlertGivenInd1Ind2NotInd3),
+        (false, false, true) -> Flip(pAlertGivenNotInd1NotInd2Ind3),
+        (false, true, false) -> Flip(pAlertGivenNotInd1Ind2NotInd3),
+        (true, false, false) -> Flip(pAlertGivenInd1NotInd2NotInd3),
+        (false, false, false) -> Flip(pAlertGivenNotInd1NotInd2NotInd3))
+
+      val expectedDerivative = 0.25
+      val (prob, deriv) = runADVEandVE(pAlertGivenInd1AndInd2AndInd3, Alert, true)
       checkValue(deriv, expectedDerivative)
     }
   }
