@@ -35,6 +35,18 @@ class ADVariableEliminationTest extends WordSpec with Matchers {
       checkValue(deriv, expectedDerivative)
     }
 
+    "get the same answers as Dan's example with a no-op Apply" in {
+      val pThreat =  Constant(0.25)
+      val pIndGivenThreat = Constant(0.9)
+      val pIndGivenNotThreat = Constant(0.15)
+      val threat = Flip(pThreat)
+      val indicator =  Flip(If(threat,Apply(pIndGivenThreat, (a: Double) => a),pIndGivenNotThreat))
+
+      val expectedDerivative = 0.25
+      val (prob, deriv) = runADVEandVE(pIndGivenThreat, indicator, true)
+      checkValue(deriv, expectedDerivative)
+    }
+
     "work on Jeff's Model3Node" in {
       val pThreat = 0.25
       val pIndGivenThreat = Constant(0.7)

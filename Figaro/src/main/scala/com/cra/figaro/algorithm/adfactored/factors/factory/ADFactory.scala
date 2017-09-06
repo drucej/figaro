@@ -169,11 +169,11 @@ object ADFactory {
 //      case d: CompoundDist[_] => SelectFactory.makeFactors(cc, d)
 //      case s: IntSelector => SelectFactory.makeFactors(cc, s)
       case constant: Constant[_] => makeFactors(cc, constant)
-//      case a: Apply1[_, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply2[_, _, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply3[_, _, _, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply4[_, _, _, _, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply5[_, _, _, _, _, _] => ApplyFactory.makeFactors(cc, a)
+      case a: Apply1[_, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply2[_, _, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply3[_, _, _, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply4[_, _, _, _, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply5[_, _, _, _, _, _] => ADApplyFactory.makeFactors(cc, a)
 //      case i: Inject[_] => makeFactors(cc, i)
 //      case r: SingleValuedReferenceElement[_] => ComplexFactory.makeFactors(cc, r)
 //      case r: MultiValuedReferenceElement[_] => ComplexFactory.makeFactors(cc, r)
@@ -255,6 +255,19 @@ object ADFactory {
     * @return
     */
   def isDerivativeTarget(element: Element[_]): Boolean = {
-    derivativeTarget == element
+    element match {
+      case a: Apply1[_, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply2[_, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply3[_, _, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply4[_, _, _, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply5[_, _, _, _, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case _ =>
+        element == derivativeTarget
+    }
   }
 }
