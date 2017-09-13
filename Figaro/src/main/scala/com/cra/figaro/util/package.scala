@@ -30,7 +30,10 @@ package object util {
    * A random number generator.
    */
 
-  def setSeed(s: Long): Unit = { seed = s }
+  def setSeed(s: Long): Unit = {
+    seed = s
+    random = new scala.util.Random(seed)
+  }
 
   def getSeed(): Long = { seed }
   private var nextHashCode = 0
@@ -43,7 +46,7 @@ package object util {
 
   var seed = System.currentTimeMillis()
 
-  lazy val random = new scala.util.Random(seed)
+  var random = new scala.util.Random(seed)
 
   /**
    * Computes and returns the argument, timing how long it takes to produce the answer and printing

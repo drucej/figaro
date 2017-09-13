@@ -13,8 +13,9 @@
 
 package com.cra.figaro.test.algorithm.adfactored
 
-import com.cra.figaro.algorithm.factored.{ADVariableElimination, VariableElimination}
+import com.cra.figaro.algorithm.factored.{ADVariableElimination, ParticleGenerator, VariableElimination}
 import com.cra.figaro.language._
+import com.cra.figaro.library.atomic.continuous.Beta
 import com.cra.figaro.library.compound.{CPD, If}
 import org.scalatest.{Matchers, WordSpec}
 
@@ -23,18 +24,111 @@ import scala.language.postfixOps
 class ADVariableEliminationTest extends WordSpec with Matchers {
 
   "ADVE" should {
+    // this test works
     "get the same answers as Dan's example" in {
+      def computeDerivative = {
+        val parameterValue = 0.9
+        val delta = 1e-6
+        val probs = for (param <- List(parameterValue - delta, parameterValue + delta)) yield {
+          Universe.createNew()
+          val pThreat =  Constant(0.25)
+          val pIndGivenThreat = Constant(param)
+          val pIndGivenNotThreat = Constant(0.15)
+          val threat = Flip(pThreat)
+          val indicator =  Flip(If(threat,pIndGivenThreat,pIndGivenNotThreat))
+
+          val inferenceTarget = indicator
+          val inferenceTargetValue = true
+          val alg = VariableElimination(inferenceTarget)
+          alg.start()
+          val prob = alg.probability(inferenceTarget, inferenceTargetValue)
+          alg.kill()
+          prob
+        }
+        (probs.last - probs.head) / (2.0 * delta)
+      }
+      val expectedDerivative = computeDerivative
+      println(s"Expected derivative: $expectedDerivative")
+
+      Universe.createNew() // it's critical that we clear the universe after computing expected derivative
       val pThreat =  Constant(0.25)
       val pIndGivenThreat = Constant(0.9)
       val pIndGivenNotThreat = Constant(0.15)
       val threat = Flip(pThreat)
       val indicator =  Flip(If(threat,pIndGivenThreat,pIndGivenNotThreat))
 
+      val (prob, deriv) = runADVEandVE(pIndGivenThreat, indicator, true)
+      checkValue(deriv, expectedDerivative)
+    }
+
+    // this one works
+    "get the same answers as Dan's example with a no-op Apply" in {
+      val pThreat =  Constant(0.25)
+      val pIndGivenThreat = Constant(0.9)
+      val pIndGivenNotThreat = Constant(0.15)
+      val threat = Flip(pThreat)
+      val indicator =  Flip(If(threat,Apply(pIndGivenThreat, (a: Double) => a),pIndGivenNotThreat))
+
       val expectedDerivative = 0.25
       val (prob, deriv) = runADVEandVE(pIndGivenThreat, indicator, true)
       checkValue(deriv, expectedDerivative)
     }
 
+    // this one doesn't work
+    "get the same answers as Dan's example with a no-op Select" in {
+      val pThreat =  Constant(0.25)
+      val pIndGivenThreat = Constant(0.9)
+      val pIndGivenNotThreat = Constant(0.15)
+      val threat = Flip(pThreat)
+      val select = Select(1.0 -> pIndGivenThreat)
+      val chn = Chain(select, (x:Constant[Double]) => x)
+      val indicator =  Flip(If(threat, chn, pIndGivenNotThreat))
+
+      val expectedDerivative = 0.25
+      val (prob, deriv) = runADVEandVE(pIndGivenThreat, indicator, true)
+      checkValue(deriv, expectedDerivative)
+    }
+
+
+    // We know this example is broken since the squaring is hidden from factor creation in the Apply
+    "get answers in Dan's example with a squared value in the Apply" in {
+      def computeDerivative = {
+        val parameterValue = 0.9
+        val delta = 1e-6
+        val probs = for (param <- List(parameterValue - delta, parameterValue + delta)) yield {
+          Universe.createNew()
+          val pThreat =  Constant(0.25)
+          val pIndGivenThreat = Constant(param)
+          val pIndGivenNotThreat = Constant(0.15)
+          val threat = Flip(pThreat)
+          val indicator =  Flip(If(threat,Apply(pIndGivenThreat, (a: Double) => a * a),pIndGivenNotThreat))
+
+          val inferenceTarget = indicator
+          val inferenceTargetValue = true
+          val alg = VariableElimination(inferenceTarget)
+          alg.start()
+          val prob = alg.probability(inferenceTarget, inferenceTargetValue)
+          alg.kill()
+          prob
+        }
+        (probs.last - probs.head) / (2.0 * delta)
+      }
+      val expectedDerivative = computeDerivative
+      println(s"Expected derivative: $expectedDerivative")
+
+      Universe.createNew() // it's critical that we clear the universe after computing expected derivative
+
+      val pThreat =  Constant(0.25)
+      val pIndGivenThreat = Constant(0.9)
+      val pIndGivenNotThreat = Constant(0.15)
+      val threat = Flip(pThreat)
+      val indicator =  Flip(If(threat,Apply(pIndGivenThreat, (a: Double) => a * a),pIndGivenNotThreat))
+
+      val (prob, deriv) = runADVEandVE(pIndGivenThreat, indicator, true)
+      checkValue(deriv, expectedDerivative)
+    }
+
+    // this one should work
     "work on Jeff's Model3Node" in {
       val pThreat = 0.25
       val pIndGivenThreat = Constant(0.7)
@@ -51,6 +145,68 @@ class ADVariableEliminationTest extends WordSpec with Matchers {
       checkValue(deriv, expectedDerivative)
     }
 
+    // this test does not work
+    "work with a beta in a modified Jeff's Model3Node" in {
+      // defaults here for both 15, which lead to about 3 samples per value
+      // values of 50 don't seem to converge on a derivative
+      // values of 100 give 25 samples but take a few minutes to run
+      ParticleGenerator.defaultNumSamplesFromAtomics = 50
+      ParticleGenerator.defaultMaxNumSamplesAtChain = 50
+
+      def computeDerivative = {
+        val parameterValue = 0.25
+        val delta = 1e-6
+        val probs = for (param <- List(parameterValue - delta, parameterValue + delta)) yield {
+          // this is hacky. needs an edit to baseline figaro
+          com.cra.figaro.util.setSeed(4444545)
+          Universe.createNew()
+          val pThreat = Constant(param)
+
+          val aGivenThreat = Constant(4.0)
+          val bGivenThreat = Constant(9.0)
+          val aGivenNotThreat = Constant(6.0)
+          val bGivenNotThreat = Constant(12.0)
+          val betaGivenThreat = Beta(aGivenThreat, bGivenThreat)
+          val betaGivenNotThreat = Beta(aGivenNotThreat, bGivenNotThreat)
+
+          val Threat = Flip(pThreat)
+          val Ind = If(Threat, betaGivenThreat, betaGivenNotThreat)
+          val Alert = Flip(Ind)
+
+          val inferenceTarget = Alert
+          val inferenceTargetValue = true
+          val alg = VariableElimination(inferenceTarget)
+          alg.start()
+          val prob = alg.probability(inferenceTarget, inferenceTargetValue)
+          println(s"Prob: $prob")
+          alg.kill()
+          prob
+        }
+        (probs.last - probs.head) / (2.0 * delta)
+      }
+      val expectedDerivative = computeDerivative
+      println(s"Expected derivative: $expectedDerivative")
+
+      Universe.createNew() // it's critical that we clear the universe after computing expected derivative
+      // this is hacky. needs an edit to baseline figaro
+      com.cra.figaro.util.setSeed(4444545)
+      val pThreat = Constant(0.25)
+      val aGivenThreat = Constant(4.0)
+      val bGivenThreat = Constant(9.0)
+      val aGivenNotThreat = Constant(6.0)
+      val bGivenNotThreat = Constant(12.0)
+      val betaGivenThreat = Beta(aGivenThreat, bGivenThreat)
+      val betaGivenNotThreat = Beta(aGivenNotThreat, bGivenNotThreat)
+
+      val Threat = Flip(pThreat)
+      val Ind = If(Threat, betaGivenThreat, betaGivenNotThreat)
+      val Alert = Flip(Ind)
+
+      val (prob, deriv) = runADVEandVE(pThreat, Alert, true)
+      checkValue(deriv, expectedDerivative)
+    }
+
+    // this test should work
     "work on Jeff's Model2Indicator" in {
       val pThreat = 0.25
       val pInd1GivenThreat = Constant(0.7)
@@ -72,11 +228,12 @@ class ADVariableEliminationTest extends WordSpec with Matchers {
         (true, false) -> Flip(pAlertGivenInd1AndNotInd2),
         (true, true) -> Flip(pAlertGivenInd1AndInd2))
 
-      val expectedDerivative = 0.25
+      val expectedDerivative = 0.139375
       val (prob, deriv) = runADVEandVE(pAlertGivenInd1AndInd2, Alert, true)
       checkValue(deriv, expectedDerivative)
     }
 
+    // this one gets the wrong answer, haven't computed the right one yet.
     "work on Jeff's Model3IndicatorDownSelect" in {
       val pThreat = 0.25
       val pInd1GivenThreat = Constant(0.7)

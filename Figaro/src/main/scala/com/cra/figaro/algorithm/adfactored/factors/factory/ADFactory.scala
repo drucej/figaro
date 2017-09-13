@@ -36,7 +36,6 @@ import scala.reflect.runtime.universe.TypeTag
   *  - added hack to store and check the derivative target variable
   */
 object ADFactory {
-
   /**
     * Create the probabilistic factor encoding the probability of evidence in the dependent universe as a function of the
     * values of variables in the parent universe. The third argument is the the function to use for computing
@@ -86,12 +85,27 @@ object ADFactory {
     }
   }
 
-  private def makeFactors[T](cc: ComponentCollection, const: Constant[T]): List[Factor[(Double, Double)]] = {
-    val factor = new DenseFactor[(Double, Double)](List(), List(Factory.getVariable(cc, const)), SumProductDualSemiring())
-    // DUAL_BIT
-    factor.set(List(0), (1.0, 0.0))
+  /**
+    * Copied from Factory - it's private
+    */
+  private def makeFactors[T](cc: ComponentCollection, const: Constant[T]): List[Factor[Double]] = {
+    val factor = new DenseFactor[Double](List(), List(Factory.getVariable(cc, const)))
+    factor.set(List(0), 1.0)
     List(factor)
   }
+
+
+  /**
+    * Copied from Factory - it's private
+    */
+  private def makeFactors[T](cc: ComponentCollection, atomic: Atomic[T]): List[Factor[Double]] = {
+    val atomicVar = Factory.getVariable(cc, atomic)
+    val atomicComp = cc(atomic)
+    // Map each extended value to its probability density, preserving the order of the list
+    val probs = atomicVar.range.map(atomicComp.probs)
+    List(SelectFactory.makeSimpleDistribution(atomicVar, probs))
+  }
+
 
   /**
     * Make factors for a particular element. This function wraps the SFI method of creating factors using component collections
@@ -148,6 +162,18 @@ object ADFactory {
   }
 
   /**
+    * Converts usual factors to AD factors
+    * Assumes nothing in the factor is a derivative target
+    * @param f
+    * @return
+    */
+  private def convert(f: Factor[Double]): Factor[(Double, Double)] = {
+    // DUAL BIT
+    val newF = f.mapTo[(Double, Double)]((d: Double) => (d, 0.0 ), SumProductDualSemiring().asInstanceOf[Semiring[(Double, Double)]])
+    newF
+  }
+
+  /**
     * Invokes Factor constructors for a standard set of Elements. This method uses various
     * secondary factories.
     */
@@ -163,17 +189,17 @@ object ADFactory {
       case f: AtomicFlip => ADDistributionFactory.makeFactors(cc, f)
       case f: CompoundFlip => ADDistributionFactory.makeFactors(cc, f)
 //      case ab: AtomicBinomial => DistributionFactory.makeFactors(cc, ab)
-//      case s: AtomicSelect[_] => SelectFactory.makeFactors(cc, s)
+      case s: AtomicSelect[_] => ADSelectFactory.makeFactors(cc, s)
 //      case s: CompoundSelect[_] => SelectFactory.makeFactors(cc, s)
 //      case d: AtomicDist[_] => SelectFactory.makeFactors(cc, d)
 //      case d: CompoundDist[_] => SelectFactory.makeFactors(cc, d)
 //      case s: IntSelector => SelectFactory.makeFactors(cc, s)
-      case constant: Constant[_] => makeFactors(cc, constant)
-//      case a: Apply1[_, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply2[_, _, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply3[_, _, _, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply4[_, _, _, _, _] => ApplyFactory.makeFactors(cc, a)
-//      case a: Apply5[_, _, _, _, _, _] => ApplyFactory.makeFactors(cc, a)
+      case constant: Constant[_] => makeFactors(cc, constant).map(convert(_))
+      case a: Apply1[_, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply2[_, _, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply3[_, _, _, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply4[_, _, _, _, _] => ADApplyFactory.makeFactors(cc, a)
+      case a: Apply5[_, _, _, _, _, _] => ADApplyFactory.makeFactors(cc, a)
 //      case i: Inject[_] => makeFactors(cc, i)
 //      case r: SingleValuedReferenceElement[_] => ComplexFactory.makeFactors(cc, r)
 //      case r: MultiValuedReferenceElement[_] => ComplexFactory.makeFactors(cc, r)
@@ -182,7 +208,7 @@ object ADFactory {
 //      case m: MakeArray[_] => ComplexFactory.makeFactors(cc, m)
 //      case f: FoldLeft[_, _] => ComplexFactory.makeFactors(cc, f)
 //      case f: FactorMaker[_] => f.makeFactors
-//      case a: Atomic[_] => makeFactors(cc, a)
+      case a: Atomic[_] => makeFactors(cc, a).map(convert(_))
 
       case _ => throw new UnsupportedAlgorithmException(elem)
     }
@@ -240,7 +266,7 @@ object ADFactory {
       val tupleIndex = pair._2
       val inputIndices =
         for { (input, value) <- inputList.zip(tupleVal) } yield input.range.indexOf(value)
-      // DUAL_BIT
+      // DUAL BIT
       tupleFactor.set(inputIndices ::: List(tupleIndex), (1.0, 0.0))
     }
     (tupleVar, tupleFactor)
@@ -255,6 +281,26 @@ object ADFactory {
     * @return
     */
   def isDerivativeTarget(element: Element[_]): Boolean = {
-    derivativeTarget == element
+    element match {
+      case a: Apply1[_, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply2[_, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply3[_, _, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply4[_, _, _, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case a: Apply5[_, _, _, _, _, _] =>
+        a.args.exists(arg => isDerivativeTarget(arg))
+      case _ =>
+        element == derivativeTarget
+    }
+  }
+
+  def isDerivativeTarget(variable: Variable[_]): Boolean = {
+    variable match {
+      case ev: ElementVariable[_] => isDerivativeTarget(ev.element)
+      case _ => false
+    }
   }
 }
