@@ -138,10 +138,11 @@ class ADVariableEliminationTest extends WordSpec with Matchers {
 
       val Threat = Flip(pThreat)
       val Ind = Flip(If(Threat, pIndGivenThreat, pIndGivenNotThreat))
+      Ind.observe(true)
       val Alert = Flip(If(Ind, pAlertGivenInd, pAlertGivenNotInd))
 
-      val expectedDerivative = 0.25
-      val (prob, deriv) = runADVEandVE(pAlertGivenInd, Alert, true)
+      val expectedDerivative = 0.0
+      val (prob, deriv) = runADVEandVE(pAlertGivenInd, Ind, true)
       checkValue(deriv, expectedDerivative)
     }
 
