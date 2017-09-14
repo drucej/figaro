@@ -87,9 +87,19 @@ object ADDistributionFactory {
             case i: If[_] =>
               // TODO check assumption that parent values are ordered {thn, else}!
               // DUAL_BIT
-              assert(parentVals.length == 2)
-              doStuff(0, ADFactory.isDerivativeTarget(i.thn))
-              doStuff(1, ADFactory.isDerivativeTarget(i.els))
+              if (parentVals.length == 2) {
+                doStuff(0, ADFactory.isDerivativeTarget(i.thn))
+                doStuff(1, ADFactory.isDerivativeTarget(i.els))
+              } else {
+                for {j <- 0 until parentVals.size} {
+                  val isDual = ADFactory.isDerivativeTarget(i.thn) || ADFactory.isDerivativeTarget(i.els) || ADFactory.isDerivativeTarget(i)
+                  val value = (parentVals(j).value, if (isDual) 1.0 else 0.0)
+                  val dualNotValue = factor.semiring.sum(factor.semiring.one, factor.semiring.product((-1.0, 0.0), value))
+                  factor.set(List(j, trueIndex), value)
+                  factor.set(List(j, falseIndex), dualNotValue)
+                }
+              }
+//              assert(parentVals.length == 2)
             case _ =>
               throw new IllegalStateException("Can't handle this, not a supported Element: " + ev.element)
           }
