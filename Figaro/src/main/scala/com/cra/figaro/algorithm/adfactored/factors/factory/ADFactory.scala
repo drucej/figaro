@@ -153,9 +153,9 @@ object ADFactory {
       } else {
         comp.constraintFactors(Lower)
       }
-//      if (!constraint.isEmpty) {
-//        throw new IllegalStateException("Not sure what to do with Constraints here in ADFactory")
-//      }
+      if (!constraint.isEmpty) {
+        Console.err.println("Not sure what to do with Constraints here in ADFactory, solution might be wrong")
+      }
       //constraint ::: comp.nonConstraintFactors(parameterized)
       constraint.map({ f => f.mapTo[(Double, Double)]((d: Double) => (d, 0.0), SumProductDualSemiring())}) ::: makeFactors(comp.problem.collection, comp.element, parameterized).map(_.deDuplicate)
     }
