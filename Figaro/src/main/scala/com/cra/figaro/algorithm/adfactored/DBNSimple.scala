@@ -60,6 +60,7 @@ object DBNSimple {
     val targetValue = true
 
     for (i <- 0 until numTimesteps) {
+
       // builds model and serves up the inference target
       def createPerturbedModel(parameterValue: Double) = {
         val model = createModel(parameterValue)
@@ -72,9 +73,10 @@ object DBNSimple {
       val alg = ADVariableElimination.debugged(model.pJohnCallGivenAlarm, model.johnCalls(i))
       alg.start()
       val (prob, deriv) = alg.getProbabilityAndDerivative(model.johnCalls(i), targetValue)
+      alg.kill
+
       println("time step : " + i + " , probability: " + prob + " , derivitive : " + deriv)
       assert(Math.abs(deriv - expectedDerivative) < 5e-2)
-      alg.kill
     }
   }
 
