@@ -31,6 +31,7 @@ package object util {
    */
 
   def setSeed(s: Long): Unit = {
+    println(s"Figaro hack! Rebooting random with seed $s")
     seed = s
     random = new scala.util.Random(seed)
   }

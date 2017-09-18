@@ -70,7 +70,7 @@ object ADDistributionFactory {
       val trueIndex = flipVar.range.indexOf(Regular(true))
       val falseIndex = 1 - trueIndex
 
-      def doStuff(row: Int, isDual: Boolean) = {
+      def setUpRow(row: Int, isDual: Boolean) = {
         val value = (parentVals(row).value, if (isDual) 1.0 else 0.0)
         val dualNotValue = factor.semiring.sum(factor.semiring.one, factor.semiring.product((-1.0, 0.0), value))
         factor.set(List(row, trueIndex), value)
@@ -83,20 +83,17 @@ object ADDistributionFactory {
             case c: Constant[_]  =>
               // DUAL_BIT
               assert(parentVals.length == 1)
-              doStuff(0, ADFactory.isDerivativeTarget(c))
+              setUpRow(0, ADFactory.isDerivativeTarget(c))
             case i: If[_] =>
               // TODO check assumption that parent values are ordered {thn, else}!
               // DUAL_BIT
               if (parentVals.length == 2) {
-                doStuff(0, ADFactory.isDerivativeTarget(i.thn))
-                doStuff(1, ADFactory.isDerivativeTarget(i.els))
+                setUpRow(0, ADFactory.isDerivativeTarget(i.thn))
+                setUpRow(1, ADFactory.isDerivativeTarget(i.els))
               } else {
                 for {j <- 0 until parentVals.size} {
                   val isDual = ADFactory.isDerivativeTarget(i.thn) || ADFactory.isDerivativeTarget(i.els) || ADFactory.isDerivativeTarget(i)
-                  val value = (parentVals(j).value, if (isDual) 1.0 else 0.0)
-                  val dualNotValue = factor.semiring.sum(factor.semiring.one, factor.semiring.product((-1.0, 0.0), value))
-                  factor.set(List(j, trueIndex), value)
-                  factor.set(List(j, falseIndex), dualNotValue)
+                  setUpRow(j, isDual)
                 }
               }
 //              assert(parentVals.length == 2)
