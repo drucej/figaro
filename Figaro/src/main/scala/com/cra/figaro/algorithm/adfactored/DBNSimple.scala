@@ -10,8 +10,12 @@ import com.cra.figaro.library.compound.{CPD, If}
   */
 class ModelV2(numTimesteps: Int, parameterValue: Double) {
   val universe = Universe.createNew
-  val pJohnCallGivenAlarm = Constant(parameterValue)
-  private val burglary = Flip(0.01)
+//  val parameterValue = 0.75
+  val pBadNeighborhood = Constant(parameterValue)
+  private val badNeighborhood = Flip(pBadNeighborhood)
+  private val burglary = CPD(badNeighborhood,
+    true -> Flip(0.2),
+    false -> Flip(0.01))
   private val earthquake = Flip(0.0001)
   private val alarm = CPD(burglary, earthquake,
     (false, false) -> Flip(0.001),
@@ -70,7 +74,7 @@ object DBNSimple {
       println(s"Expected derivative for time step i=$i when johnCalls(i) is $targetValue and parameter is $parameterValue = $expectedDerivative")
 
       val model = createModel(parameterValue)
-      val alg = ADVariableElimination.debugged(model.pJohnCallGivenAlarm, model.johnCalls(i))
+      val alg = ADVariableElimination.debugged(model.pBadNeighborhood, model.johnCalls(i))
       alg.start()
       val (prob, deriv) = alg.getProbabilityAndDerivative(model.johnCalls(i), targetValue)
       alg.kill
